@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAppStore } from "@/store/useAppStore";
+import { getNextPendingLesson } from "@/content";
+import { allSongs, getSongMaxStars } from "@/content/songs";
 import { RotateBanner } from "@/components/RotateBanner";
 
 export default function HomePage() {
@@ -18,10 +20,9 @@ export default function HomePage() {
   }, []);
 
   const student = useAppStore((s) => s.student);
-  const totalStars = useAppStore((s) => s.getTotalStars());
-  const hasCompletedLessons = useAppStore(
-    (s) => s.lessonAttempts.some((a) => a.completed),
-  );
+  const totalLessonStars = useAppStore((s) => s.getTotalStars());
+  const totalSongStars = useAppStore((s) => s.getTotalSongStars());
+  const getCompletedLessonIds = useAppStore((s) => s.getCompletedLessonIds);
 
   useEffect(() => {
     if (hydrated && !student) {
@@ -39,7 +40,17 @@ export default function HomePage() {
 
   if (!student) return null;
 
-  const hasSongs = hasCompletedLessons;
+  const completedLessonIds = getCompletedLessonIds();
+  const nextPendingLesson = getNextPendingLesson(completedLessonIds);
+  const continueLessonId =
+    nextPendingLesson?.id ?? student.currentLessonId ?? "lesson-1";
+  const hasSongs = allSongs.some((song) =>
+    completedLessonIds.includes(song.requiredLessonId),
+  );
+  const maxSongStars = allSongs.reduce(
+    (total, song) => total + getSongMaxStars(song),
+    0,
+  );
 
   return (
     <main className="flex flex-1 items-center justify-center p-6">
@@ -52,17 +63,18 @@ export default function HomePage() {
           </h1>
         </div>
 
-        <p className="text-2xl font-semibold text-yellow-500">
-          ⭐ {totalStars} estrellas
-        </p>
+        <div className="flex flex-col items-center gap-1 text-center">
+          <p className="text-2xl font-semibold text-yellow-500">
+            ⭐ {totalLessonStars} estrellas de lecciones
+          </p>
+          <p className="text-lg font-medium text-purple-500">
+            🎵 {totalSongStars} / {maxSongStars} estrellas de canciones
+          </p>
+        </div>
 
         <button
           type="button"
-          onClick={() =>
-            router.push(
-              `/lesson/${student.currentLessonId ?? "lesson-1"}`,
-            )
-          }
+          onClick={() => router.push(`/lesson/${continueLessonId}`)}
           className="w-full rounded-2xl bg-blue-500 px-8 py-4 text-2xl font-bold text-white transition-colors hover:bg-blue-600"
         >
           Continuar

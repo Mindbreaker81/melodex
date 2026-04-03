@@ -9,11 +9,14 @@ import type {
 
 interface AppStore extends AppState {
   setStudent: (profile: StudentProfile) => void;
+  setCurrentLessonId: (lessonId: string) => void;
   clearStudent: () => void;
   addLessonAttempt: (attempt: Omit<LessonAttempt, "id" | "createdAt">) => void;
   getBestAttempt: (lessonId: string) => LessonAttempt | undefined;
   addSongAttempt: (attempt: Omit<SongAttempt, "id" | "createdAt">) => void;
   getTotalStars: () => number;
+  getSongStars: (songId: string) => number;
+  getTotalSongStars: () => number;
   getCompletedLessonIds: () => string[];
   isLessonCompleted: (lessonId: string) => boolean;
 }
@@ -26,6 +29,13 @@ export const useAppStore = create<AppStore>()(
       songAttempts: [],
 
       setStudent: (profile) => set({ student: profile }),
+
+      setCurrentLessonId: (lessonId) =>
+        set((state) =>
+          state.student
+            ? { student: { ...state.student, currentLessonId: lessonId } }
+            : {},
+        ),
 
       clearStudent: () => set({ student: null }),
 
@@ -73,6 +83,52 @@ export const useAppStore = create<AppStore>()(
         }
         let total = 0;
         for (const stars of bestByLesson.values()) total += stars;
+        return total;
+      },
+
+      getSongStars: (songId) => {
+        const attempts = get().songAttempts.filter(
+          (attempt) => attempt.songId === songId && attempt.completed,
+        );
+        const completedFragments = new Set(
+          attempts
+            .filter((attempt) => attempt.fragmentId !== null)
+            .map((attempt) => attempt.fragmentId as string),
+        );
+        const fullSongCompleted = attempts.some(
+          (attempt) => attempt.fragmentId === null,
+        );
+        return completedFragments.size + (fullSongCompleted ? 1 : 0);
+      },
+
+      getTotalSongStars: () => {
+        const songProgress = new Map<
+          string,
+          { fragments: Set<string>; fullSongCompleted: boolean }
+        >();
+
+        for (const attempt of get().songAttempts) {
+          if (!attempt.completed) continue;
+
+          const current = songProgress.get(attempt.songId) ?? {
+            fragments: new Set<string>(),
+            fullSongCompleted: false,
+          };
+
+          if (attempt.fragmentId) {
+            current.fragments.add(attempt.fragmentId);
+          } else {
+            current.fullSongCompleted = true;
+          }
+
+          songProgress.set(attempt.songId, current);
+        }
+
+        let total = 0;
+        for (const progress of songProgress.values()) {
+          total += progress.fragments.size;
+          if (progress.fullSongCompleted) total += 1;
+        }
         return total;
       },
 

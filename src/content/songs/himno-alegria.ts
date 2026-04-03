@@ -4,8 +4,8 @@ export const himnoAlegria: Song = {
   id: "song-himno",
   title: "Himno de la Alegría",
   difficulty: "easy",
-  requiredLessonId: "lesson-7",
-  fullDemoAudio: "/audio/songs/himno-alegria.mp3",
+  requiredLessonId: "lesson-6",
+  fullDemoAudio: "/audio/songs/himno-alegria.wav",
   fragments: [
     {
       id: "himno-f1",

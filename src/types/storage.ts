@@ -24,6 +24,7 @@ export interface SongAttempt {
   fragmentId: string | null;
   completed: boolean;
   tempoPercent: number;
+  durationSeconds: number | null;
   createdAt: string;
 }
 

@@ -4,8 +4,8 @@ export const estrellita: Song = {
   id: "song-estrellita",
   title: "Estrellita",
   difficulty: "easy",
-  requiredLessonId: "lesson-7",
-  fullDemoAudio: "/audio/songs/estrellita.mp3",
+  requiredLessonId: "lesson-6",
+  fullDemoAudio: "/audio/songs/estrellita.wav",
   fragments: [
     {
       id: "estrellita-f1",

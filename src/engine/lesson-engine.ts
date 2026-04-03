@@ -6,6 +6,7 @@ export interface LessonState {
   totalSteps: number;
   quizErrors: number;
   completedStepIds: string[];
+  mainExerciseRepeated: boolean;
   isComplete: boolean;
   startedAt: string;
 }
@@ -14,6 +15,7 @@ export type UserAction =
   | { type: "next" }
   | { type: "answer"; note: string }
   | { type: "answer-sequence"; notes: string[] }
+  | { type: "repeat-main" }
   | { type: "retry" };
 
 export function initLesson(lesson: Lesson): LessonState {
@@ -23,6 +25,7 @@ export function initLesson(lesson: Lesson): LessonState {
     totalSteps: lesson.steps.length,
     quizErrors: 0,
     completedStepIds: [],
+    mainExerciseRepeated: false,
     isComplete: false,
     startedAt: new Date().toISOString(),
   };
@@ -42,6 +45,15 @@ export function processAction(
     };
   }
 
+  if (action.type === "repeat-main") {
+    if (!state.isComplete) return state;
+    return {
+      ...state,
+      currentStepIndex: getMainExerciseIndex(lesson),
+      isComplete: false,
+    };
+  }
+
   if (state.isComplete) return state;
 
   const currentStep = lesson.steps[state.currentStepIndex];
@@ -56,14 +68,14 @@ export function processAction(
       ) {
         return state;
       }
-      return advanceStep(state, currentStep);
+      return advanceStep(state, currentStep, lesson);
     }
 
     case "answer": {
       if (currentStep.type !== "find-note") return state;
-      const expected = currentStep.targetNotes?.[0];
-      if (action.note === expected) {
-        return advanceStep(state, currentStep);
+      const expected = currentStep.targetNotes ?? [];
+      if (expected.includes(action.note)) {
+        return advanceStep(state, currentStep, lesson);
       }
       return { ...state, quizErrors: state.quizErrors + 1 };
     }
@@ -75,7 +87,7 @@ export function processAction(
         action.notes.length === expected.length &&
         action.notes.every((n, i) => n === expected[i]);
       if (isCorrect) {
-        return advanceStep(state, currentStep);
+        return advanceStep(state, currentStep, lesson);
       }
       return { ...state, quizErrors: state.quizErrors + 1 };
     }
@@ -85,17 +97,44 @@ export function processAction(
   }
 }
 
-function advanceStep(state: LessonState, currentStep: LessonStep): LessonState {
+function advanceStep(
+  state: LessonState,
+  currentStep: LessonStep,
+  lesson: Lesson,
+): LessonState {
   const completedStepIds = [...state.completedStepIds, currentStep.id];
   const nextIndex = state.currentStepIndex + 1;
   const isComplete = nextIndex >= state.totalSteps;
+  const mainExerciseStep = lesson.steps[getMainExerciseIndex(lesson)];
+  const mainExerciseRepeated =
+    state.mainExerciseRepeated ||
+    (
+      currentStep.id === mainExerciseStep?.id &&
+      state.completedStepIds.includes(currentStep.id)
+    );
 
   return {
     ...state,
     currentStepIndex: isComplete ? state.currentStepIndex : nextIndex,
     completedStepIds,
+    mainExerciseRepeated,
     isComplete,
   };
+}
+
+function getMainExerciseIndex(lesson: Lesson): number {
+  for (let index = lesson.steps.length - 1; index >= 0; index--) {
+    const stepType = lesson.steps[index]?.type;
+    if (
+      stepType === "play-real" ||
+      stepType === "sequence-quiz" ||
+      stepType === "find-note"
+    ) {
+      return index;
+    }
+  }
+
+  return Math.max(lesson.steps.length - 1, 0);
 }
 
 export function getCurrentStep(
@@ -109,17 +148,17 @@ export function getCurrentStep(
 export function calculateStars(state: LessonState): number {
   if (!state.isComplete) return 0;
   if (state.quizErrors > 0) return 1;
-  if (state.completedStepIds.length > state.totalSteps) return 3;
+  if (state.mainExerciseRepeated) return 3;
   return 2;
 }
 
 export function isLessonUnlocked(
-  lessonOrder: number,
+  lessonId: string,
   completedLessonIds: string[],
-  allLessons: Lesson[],
+  orderedLessons: Lesson[],
 ): boolean {
-  if (lessonOrder <= 1) return true;
-  const previousLesson = allLessons.find((l) => l.order === lessonOrder - 1);
-  if (!previousLesson) return false;
-  return completedLessonIds.includes(previousLesson.id);
+  const currentIndex = orderedLessons.findIndex((lesson) => lesson.id === lessonId);
+  if (currentIndex === -1) return false;
+  if (currentIndex === 0) return true;
+  return completedLessonIds.includes(orderedLessons[currentIndex - 1].id);
 }

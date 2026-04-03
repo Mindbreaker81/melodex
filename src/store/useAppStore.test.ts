@@ -31,6 +31,12 @@ describe("useAppStore", () => {
     expect(useAppStore.getState().student).toEqual(mockStudent);
   });
 
+  it("setCurrentLessonId updates the current lesson", () => {
+    useAppStore.getState().setStudent(mockStudent);
+    useAppStore.getState().setCurrentLessonId("lesson-3");
+    expect(useAppStore.getState().student?.currentLessonId).toBe("lesson-3");
+  });
+
   it("clearStudent resets student to null", () => {
     useAppStore.getState().setStudent(mockStudent);
     useAppStore.getState().clearStudent();
@@ -99,6 +105,7 @@ describe("useAppStore", () => {
       fragmentId: "frag-1",
       completed: true,
       tempoPercent: 80,
+      durationSeconds: 45,
     });
 
     const attempts = useAppStore.getState().songAttempts;
@@ -106,6 +113,76 @@ describe("useAppStore", () => {
     expect(attempts[0].id).toBeDefined();
     expect(attempts[0].createdAt).toBeDefined();
     expect(attempts[0].songId).toBe("song-1");
+  });
+
+  it("getSongStars counts unique fragments and full-song completion", () => {
+    const { addSongAttempt } = useAppStore.getState();
+
+    addSongAttempt({
+      studentId: "student-1",
+      songId: "song-1",
+      fragmentId: "frag-1",
+      completed: true,
+      tempoPercent: 50,
+      durationSeconds: 20,
+    });
+    addSongAttempt({
+      studentId: "student-1",
+      songId: "song-1",
+      fragmentId: "frag-1",
+      completed: true,
+      tempoPercent: 75,
+      durationSeconds: 18,
+    });
+    addSongAttempt({
+      studentId: "student-1",
+      songId: "song-1",
+      fragmentId: "frag-2",
+      completed: true,
+      tempoPercent: 75,
+      durationSeconds: 22,
+    });
+    addSongAttempt({
+      studentId: "student-1",
+      songId: "song-1",
+      fragmentId: null,
+      completed: true,
+      tempoPercent: 100,
+      durationSeconds: 40,
+    });
+
+    expect(useAppStore.getState().getSongStars("song-1")).toBe(3);
+  });
+
+  it("getTotalSongStars sums unique stars across songs", () => {
+    const { addSongAttempt } = useAppStore.getState();
+
+    addSongAttempt({
+      studentId: "student-1",
+      songId: "song-1",
+      fragmentId: "frag-1",
+      completed: true,
+      tempoPercent: 50,
+      durationSeconds: 12,
+    });
+    addSongAttempt({
+      studentId: "student-1",
+      songId: "song-1",
+      fragmentId: null,
+      completed: true,
+      tempoPercent: 100,
+      durationSeconds: 25,
+    });
+    addSongAttempt({
+      studentId: "student-1",
+      songId: "song-2",
+      fragmentId: "frag-a",
+      completed: true,
+      tempoPercent: 75,
+      durationSeconds: 15,
+    });
+
+    expect(useAppStore.getState().getTotalSongStars()).toBe(3);
   });
 
   it("getTotalStars sums best stars per completed lesson", () => {

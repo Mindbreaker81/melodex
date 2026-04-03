@@ -3,7 +3,11 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { getLessonById, allLessons } from "@/content";
+import {
+  getLessonById,
+  getNextLessonById,
+  getNextPendingLesson,
+} from "@/content";
 import {
   initLesson,
   processAction,
@@ -45,13 +49,13 @@ function CompletionScreen({
   nextLesson,
   onNext,
   onMap,
-  onRetry,
+  onRepeat,
 }: {
   stars: number;
   nextLesson: Lesson | null;
   onNext: () => void;
   onMap: () => void;
-  onRetry: () => void;
+  onRepeat: () => void;
 }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-8 p-6">
@@ -61,11 +65,11 @@ function CompletionScreen({
       <StarsDisplay earned={stars} />
       <button
         type="button"
-        onClick={onRetry}
+        onClick={onRepeat}
         className="min-h-[48px] w-full max-w-xs rounded-2xl border-2 border-purple-400 bg-white px-6 py-3 text-lg font-bold text-purple-600 transition-colors hover:bg-purple-50"
       >
         {stars < 3
-          ? "🔄 Repetir para ganar 3 estrellas"
+          ? "🔄 Repetir ejercicio principal"
           : "🔄 Repetir lección"}
       </button>
       <div className="flex w-full max-w-xs flex-col gap-3">
@@ -101,7 +105,6 @@ export default function LessonPlayerPage() {
   );
   const [errorFlash, setErrorFlash] = useState(false);
   const [sequenceIndex, setSequenceIndex] = useState(0);
-  const [prevLessonId, setPrevLessonId] = useState(lessonId);
 
   const audioResumedRef = useRef(false);
   const savedForLessonRef = useRef<string | null>(null);
@@ -111,22 +114,25 @@ export default function LessonPlayerPage() {
 
   const student = useAppStore((s) => s.student);
   const addLessonAttempt = useAppStore((s) => s.addLessonAttempt);
-
-  if (lessonId !== prevLessonId) {
-    setPrevLessonId(lessonId);
-    if (lesson) {
-      setState(initLesson(lesson));
-      setSequenceIndex(0);
-    } else {
-      setState(null);
-    }
-  }
+  const setCurrentLessonId = useAppStore((s) => s.setCurrentLessonId);
+  const lessonState =
+    state?.lessonId === lessonId
+      ? state
+      : lesson
+        ? initLesson(lesson)
+        : null;
+  const activeSequenceIndex =
+    state?.lessonId === lessonId ? sequenceIndex : 0;
 
   useEffect(() => {
     return () => {
       if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    savedForLessonRef.current = null;
+  }, [lessonId]);
 
   function resumeAudio() {
     if (!audioResumedRef.current) {
@@ -159,13 +165,19 @@ export default function LessonPlayerPage() {
           (Date.now() - new Date(newState.startedAt).getTime()) / 1000,
         ),
       });
+      const completedIds = useAppStore.getState().getCompletedLessonIds();
+      const projectedCompletedIds = completedIds.includes(lesson.id)
+        ? completedIds
+        : [...completedIds, lesson.id];
+      const nextPendingLesson = getNextPendingLesson(projectedCompletedIds);
+      setCurrentLessonId(nextPendingLesson?.id ?? lesson.id);
     }
   }
 
   function handleNext() {
-    if (!state || !lesson) return;
+    if (!lessonState || !lesson) return;
     resumeAudio();
-    const newState = processAction(state, { type: "next" }, lesson);
+    const newState = processAction(lessonState, { type: "next" }, lesson);
     setState(newState);
     saveIfComplete(newState);
   }
@@ -179,29 +191,29 @@ export default function LessonPlayerPage() {
   }
 
   function handleNoteClick(note: string) {
-    if (!state || !lesson || state.isComplete) return;
+    if (!lessonState || !lesson || lessonState.isComplete) return;
     resumeAudio();
     audioEngine.playNote(note);
 
-    const step = getCurrentStep(state, lesson);
+    const step = getCurrentStep(lessonState, lesson);
     if (!step) return;
 
     if (step.type === "find-note") {
       const newState = processAction(
-        state,
+        lessonState,
         { type: "answer", note },
         lesson,
       );
-      if (newState.quizErrors > state.quizErrors) triggerFlash();
+      if (newState.quizErrors > lessonState.quizErrors) triggerFlash();
       setState(newState);
       saveIfComplete(newState);
     } else if (step.type === "sequence-quiz") {
-      const expected = step.targetNotes?.[sequenceIndex];
+      const expected = step.targetNotes?.[activeSequenceIndex];
       if (note === expected) {
-        const nextIdx = sequenceIndex + 1;
+        const nextIdx = activeSequenceIndex + 1;
         if (nextIdx >= (step.targetNotes?.length ?? 0)) {
           const newState = processAction(
-            state,
+            lessonState,
             { type: "answer-sequence", notes: step.targetNotes! },
             lesson,
           );
@@ -214,11 +226,11 @@ export default function LessonPlayerPage() {
       } else {
         triggerFlash();
         const wrong = [
-          ...(step.targetNotes?.slice(0, sequenceIndex) ?? []),
+          ...(step.targetNotes?.slice(0, activeSequenceIndex) ?? []),
           note,
         ];
         const newState = processAction(
-          state,
+          lessonState,
           { type: "answer-sequence", notes: wrong },
           lesson,
         );
@@ -244,7 +256,7 @@ export default function LessonPlayerPage() {
     );
   }
 
-  if (!state) {
+  if (!lessonState) {
     return (
       <main className="flex flex-1 items-center justify-center">
         <span className="text-3xl animate-pulse">🎵</span>
@@ -252,27 +264,29 @@ export default function LessonPlayerPage() {
     );
   }
 
-  const sortedLessons = [...allLessons].sort((a, b) => a.order - b.order);
-  const currentIdx = sortedLessons.findIndex((l) => l.id === lesson.id);
-  const nextLesson =
-    currentIdx >= 0 && currentIdx < sortedLessons.length - 1
-      ? sortedLessons[currentIdx + 1]
-      : null;
+  const nextLesson = getNextLessonById(lesson.id);
+  const earnedStars = calculateStars(lessonState);
 
-  if (state.isComplete) {
+  if (lessonState.isComplete) {
     return (
       <main className="flex flex-1 flex-col">
         <CompletionScreen
-          stars={calculateStars(state)}
+          stars={earnedStars}
           nextLesson={nextLesson}
           onNext={() =>
             nextLesson && router.push(`/lesson/${nextLesson.id}`)
           }
           onMap={() => router.push("/lessons")}
-          onRetry={() => {
+          onRepeat={() => {
             if (!lesson) return;
             savedForLessonRef.current = null;
-            setState(processAction(state, { type: "retry" }, lesson));
+            setState(
+              processAction(
+                lessonState,
+                { type: earnedStars < 3 ? "repeat-main" : "retry" },
+                lesson,
+              ),
+            );
             setSequenceIndex(0);
           }}
         />
@@ -280,7 +294,7 @@ export default function LessonPlayerPage() {
     );
   }
 
-  const step = getCurrentStep(state, lesson);
+  const step = getCurrentStep(lessonState, lesson);
   if (!step) return null;
 
   return (
@@ -289,12 +303,12 @@ export default function LessonPlayerPage() {
         <div className="mb-2 flex items-center justify-between">
           <h1 className="text-lg font-bold text-purple-600">{lesson.title}</h1>
           <span className="text-sm text-gray-500">
-            {state.currentStepIndex + 1} / {state.totalSteps}
+            {lessonState.currentStepIndex + 1} / {lessonState.totalSteps}
           </span>
         </div>
         <ProgressBar
-          current={state.currentStepIndex}
-          total={state.totalSteps}
+          current={lessonState.currentStepIndex}
+          total={lessonState.totalSteps}
         />
       </div>
 
@@ -365,8 +379,8 @@ export default function LessonPlayerPage() {
         {step.type === "sequence-quiz" && (
           <div className="w-full">
             <Keyboard
-              nextNote={step.targetNotes?.[sequenceIndex]}
-              activeFinger={step.fingers?.[sequenceIndex]}
+              nextNote={step.targetNotes?.[activeSequenceIndex]}
+              activeFinger={step.fingers?.[activeSequenceIndex]}
               onKeyClick={handleNoteClick}
             />
           </div>

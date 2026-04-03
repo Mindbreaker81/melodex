@@ -107,7 +107,7 @@ export default function Keyboard({
       <p className="mb-2 text-center text-xs text-gray-400 sm:hidden">
         📱 Gira tu dispositivo para ver el teclado completo
       </p>
-      <div className="overflow-x-auto">
+      <div className="keyboard-viewport overflow-x-auto">
         <div
           className="relative inline-flex"
           style={{ width: whiteKeys.length * WHITE_KEY_WIDTH }}

@@ -1,9 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useState, useRef, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { getSongById } from "@/content/songs";
+import {
+  getSongById,
+  getSongMaxStars,
+  isSongUnlocked,
+} from "@/content/songs";
 import {
   initSongPlay,
   processNoteInput,
@@ -33,9 +37,11 @@ const MODE_LABELS: Record<Mode, string> = {
 
 export default function SongPlayerPage() {
   const params = useParams();
+  const router = useRouter();
   const songId = params.id as string;
   const song = getSongById(songId);
 
+  const [hydrated, setHydrated] = useState(false);
   const [mode, setMode] = useState<Mode>("listen");
   const [tempoPercent, setTempoPercent] = useState(0.5);
   const [activeFragmentIdx, setActiveFragmentIdx] = useState(0);
@@ -46,20 +52,42 @@ export default function SongPlayerPage() {
   const [listenNoteIdx, setListenNoteIdx] = useState<number | null>(null);
 
   const student = useAppStore((s) => s.student);
+  const getCompletedLessonIds = useAppStore((s) => s.getCompletedLessonIds);
+  const getSongStars = useAppStore((s) => s.getSongStars);
   const addSongAttempt = useAppStore((s) => s.addSongAttempt);
+  const completedLessonIds = getCompletedLessonIds();
 
   const audioResumedRef = useRef(false);
+  const attemptStartedAtRef = useRef(Date.now());
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
   const listenTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const listenAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
+    const markHydrated = () => setHydrated(true);
+    const unsub = useAppStore.persist.onFinishHydration(markHydrated);
+    if (useAppStore.persist.hasHydrated()) markHydrated();
+
     return () => {
+      unsub();
       if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
-      for (const t of listenTimersRef.current) clearTimeout(t);
+      for (const timer of listenTimersRef.current) clearTimeout(timer);
+      listenTimersRef.current = [];
+      listenAudioRef.current?.pause();
+      if (listenAudioRef.current) {
+        listenAudioRef.current.currentTime = 0;
+      }
+      listenAudioRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (hydrated && !student) {
+      router.push("/onboarding");
+    }
+  }, [hydrated, student, router]);
 
   function resumeAudio() {
     if (!audioResumedRef.current) {
@@ -74,59 +102,33 @@ export default function SongPlayerPage() {
     flashTimeoutRef.current = setTimeout(() => setErrorFlash(false), 500);
   }
 
-  const switchMode = useCallback(
-    (newMode: Mode) => {
-      if (!song) return;
-      audioEngine.stop();
-      setIsPlaying(false);
-      setListenNoteIdx(null);
-      for (const t of listenTimersRef.current) clearTimeout(t);
-      listenTimersRef.current = [];
-
-      setMode(newMode);
-      setFragmentComplete(false);
-      setErrorFlash(false);
-
-      if (newMode === "fragment") {
-        setPlayState(initSongPlay(song.id, "fragment"));
-        setActiveFragmentIdx(0);
-      } else if (newMode === "full") {
-        setPlayState(initSongPlay(song.id, "full"));
-      } else {
-        setPlayState(null);
-      }
-    },
-    [song],
-  );
-
-  function selectFragment(idx: number) {
-    if (!song) return;
-    setActiveFragmentIdx(idx);
-    setFragmentComplete(false);
-    const newState = initSongPlay(song.id, "fragment");
-    newState.activeFragmentIndex = idx;
-    setPlayState(newState);
+  function resetAttemptTimer() {
+    attemptStartedAtRef.current = Date.now();
   }
 
-  function handleListen() {
-    if (!song) return;
-    resumeAudio();
-    audioEngine.stop();
-
-    for (const t of listenTimersRef.current) clearTimeout(t);
+  function clearListenTimers() {
+    for (const timer of listenTimersRef.current) clearTimeout(timer);
     listenTimersRef.current = [];
+  }
 
+  function stopListenAudio() {
+    listenAudioRef.current?.pause();
+    if (listenAudioRef.current) {
+      listenAudioRef.current.currentTime = 0;
+    }
+    listenAudioRef.current = null;
+  }
+
+  function scheduleListenHighlights() {
+    if (!song) return;
     const notes = getAllNotes(song);
-    audioEngine.playSequence(notes, tempoPercent);
+
     setIsPlaying(true);
     setListenNoteIdx(0);
 
     let offset = 0;
     for (let i = 0; i < notes.length; i++) {
-      const timer = setTimeout(
-        () => setListenNoteIdx(i),
-        offset,
-      );
+      const timer = setTimeout(() => setListenNoteIdx(i), offset);
       listenTimersRef.current.push(timer);
       offset += notes[i].durationMs / tempoPercent;
     }
@@ -138,12 +140,69 @@ export default function SongPlayerPage() {
     listenTimersRef.current.push(endTimer);
   }
 
-  function handleStopListen() {
+  function switchMode(newMode: Mode) {
+    if (!song) return;
     audioEngine.stop();
     setIsPlaying(false);
     setListenNoteIdx(null);
-    for (const t of listenTimersRef.current) clearTimeout(t);
-    listenTimersRef.current = [];
+    clearListenTimers();
+    stopListenAudio();
+
+    setMode(newMode);
+    setFragmentComplete(false);
+    setErrorFlash(false);
+    resetAttemptTimer();
+
+    if (newMode === "fragment") {
+      setPlayState(initSongPlay(song.id, "fragment"));
+      setActiveFragmentIdx(0);
+    } else if (newMode === "full") {
+      setPlayState(initSongPlay(song.id, "full"));
+    } else {
+      setPlayState(null);
+    }
+  }
+
+  function selectFragment(idx: number) {
+    if (!song) return;
+    resetAttemptTimer();
+    setActiveFragmentIdx(idx);
+    setFragmentComplete(false);
+    const newState = initSongPlay(song.id, "fragment");
+    newState.activeFragmentIndex = idx;
+    setPlayState(newState);
+  }
+
+  async function handleListen() {
+    if (!song) return;
+    resumeAudio();
+    audioEngine.stop();
+    clearListenTimers();
+    stopListenAudio();
+    scheduleListenHighlights();
+
+    if (song.fullDemoAudio) {
+      const audio = new Audio(song.fullDemoAudio);
+      audio.playbackRate = tempoPercent;
+      listenAudioRef.current = audio;
+
+      try {
+        await audio.play();
+        return;
+      } catch {
+        listenAudioRef.current = null;
+      }
+    }
+
+    audioEngine.playSequence(getAllNotes(song), tempoPercent);
+  }
+
+  function handleStopListen() {
+    audioEngine.stop();
+    stopListenAudio();
+    setIsPlaying(false);
+    setListenNoteIdx(null);
+    clearListenTimers();
   }
 
   function saveSongAttempt(fragmentId: string | null) {
@@ -154,6 +213,9 @@ export default function SongPlayerPage() {
       fragmentId,
       completed: true,
       tempoPercent: Math.round(tempoPercent * 100),
+      durationSeconds: Math.floor(
+        (Date.now() - attemptStartedAtRef.current) / 1000,
+      ),
     });
   }
 
@@ -184,6 +246,14 @@ export default function SongPlayerPage() {
     }
   }
 
+  if (!hydrated) {
+    return (
+      <main className="flex flex-1 items-center justify-center">
+        <span className="text-3xl animate-pulse">🎵</span>
+      </main>
+    );
+  }
+
   if (!song) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4 p-6">
@@ -193,6 +263,31 @@ export default function SongPlayerPage() {
         <Link
           href="/songs"
           className="text-lg text-blue-500 hover:underline"
+        >
+          Volver a canciones
+        </Link>
+      </main>
+    );
+  }
+
+  if (!student) return null;
+
+  const unlocked = isSongUnlocked(song, completedLessonIds);
+  const earnedStars = getSongStars(song.id);
+  const maxStars = getSongMaxStars(song);
+
+  if (!unlocked) {
+    return (
+      <main className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
+        <p className="text-2xl font-bold text-purple-600">
+          Esta canción aún está bloqueada
+        </p>
+        <p className="max-w-md text-gray-600">
+          Completa la lección requerida para desbloquearla.
+        </p>
+        <Link
+          href="/songs"
+          className="rounded-2xl bg-blue-500 px-6 py-3 text-lg font-bold text-white transition-colors hover:bg-blue-600"
         >
           Volver a canciones
         </Link>
@@ -226,6 +321,9 @@ export default function SongPlayerPage() {
           <h1 className="mb-4 text-2xl font-bold text-purple-600">
             {song.title}
           </h1>
+          <p className="mb-4 text-sm font-medium text-purple-600">
+            ⭐ {earnedStars} / {maxStars} estrellas de canciones
+          </p>
 
           <div className="flex gap-2">
             {(["listen", "fragment", "full"] as const).map((m) => (
@@ -356,6 +454,7 @@ export default function SongPlayerPage() {
                   <button
                     type="button"
                     onClick={() => {
+                      resetAttemptTimer();
                       setPlayState(initSongPlay(song.id, "full"));
                       setFragmentComplete(false);
                     }}

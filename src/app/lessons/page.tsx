@@ -4,7 +4,12 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAppStore } from "@/store/useAppStore";
-import { worlds, allLessons, getLessonById } from "@/content";
+import {
+  worlds,
+  orderedLessons,
+  getLessonById,
+  getNextPendingLesson,
+} from "@/content";
 import { isLessonUnlocked } from "@/engine/lesson-engine";
 
 export default function LessonsPage() {
@@ -18,19 +23,13 @@ export default function LessonsPage() {
     return unsub;
   }, []);
 
-  const completedIds = useAppStore((s) => s.getCompletedLessonIds());
+  const getCompletedLessonIds = useAppStore((s) => s.getCompletedLessonIds);
   const isCompleted = useAppStore((s) => s.isLessonCompleted);
   const getBestAttempt = useAppStore((s) => s.getBestAttempt);
+  const completedIds = getCompletedLessonIds();
 
   const currentLessonId = useMemo(() => {
-    const sorted = [...allLessons].sort((a, b) => a.order - b.order);
-    return (
-      sorted.find(
-        (l) =>
-          isLessonUnlocked(l.order, completedIds, allLessons) &&
-          !completedIds.includes(l.id),
-      )?.id ?? null
-    );
+    return getNextPendingLesson(completedIds)?.id ?? null;
   }, [completedIds]);
 
   if (!hydrated) {
@@ -64,10 +63,12 @@ export default function LessonsPage() {
               if (!lesson) return null;
 
               const completed = isCompleted(lessonId);
+              const sequenceNumber =
+                orderedLessons.findIndex((item) => item.id === lesson.id) + 1;
               const unlocked = isLessonUnlocked(
-                lesson.order,
+                lesson.id,
                 completedIds,
-                allLessons,
+                orderedLessons,
               );
               const isCurrent = lessonId === currentLessonId;
               const best = getBestAttempt(lessonId);
@@ -94,7 +95,7 @@ export default function LessonsPage() {
                 >
                   <div className="flex items-center gap-4">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-lg font-bold text-gray-700">
-                      {lesson.order}
+                      {sequenceNumber}
                     </span>
                     <div>
                       <p className="text-lg font-semibold text-gray-800">

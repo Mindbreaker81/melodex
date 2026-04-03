@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { worlds, allLessons, getLessonById, getWorldById } from "@/content";
+import { allSongs } from "@/content/songs";
 import { VALID_NOTES } from "@/types/content";
 import type { FingerNumber } from "@/types/content";
 
@@ -84,6 +85,16 @@ describe("Content validation", () => {
           expect(step.targetNotes!.length, `${step.id} has empty targetNotes`).toBeGreaterThan(0);
         }
       }
+    }
+  });
+
+  it("songs reference existing required lessons", () => {
+    const lessonIds = new Set(allLessons.map((lesson) => lesson.id));
+    for (const song of allSongs) {
+      expect(
+        lessonIds.has(song.requiredLessonId),
+        `${song.id} references missing required lesson ${song.requiredLessonId}`,
+      ).toBe(true);
     }
   });
 

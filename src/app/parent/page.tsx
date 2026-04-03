@@ -19,8 +19,9 @@ export default function ParentPage() {
   const student = useAppStore((s) => s.student);
   const lessonAttempts = useAppStore((s) => s.lessonAttempts);
   const songAttempts = useAppStore((s) => s.songAttempts);
-  const totalStars = useAppStore((s) => s.getTotalStars());
-  const completedLessonIds = useAppStore((s) => s.getCompletedLessonIds());
+  const totalLessonStars = useAppStore((s) => s.getTotalStars());
+  const getCompletedLessonIds = useAppStore((s) => s.getCompletedLessonIds);
+  const completedLessonIds = getCompletedLessonIds();
 
   useEffect(() => {
     if (hydrated && !student) {
@@ -44,7 +45,7 @@ export default function ParentPage() {
         student={student}
         lessonAttempts={lessonAttempts}
         songAttempts={songAttempts}
-        totalStars={totalStars}
+        totalLessonStars={totalLessonStars}
         completedLessonIds={completedLessonIds}
       />
     </main>

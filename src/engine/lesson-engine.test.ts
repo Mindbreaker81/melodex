@@ -32,6 +32,7 @@ describe("initLesson", () => {
     expect(state.totalSteps).toBe(3);
     expect(state.quizErrors).toBe(0);
     expect(state.completedStepIds).toEqual([]);
+    expect(state.mainExerciseRepeated).toBe(false);
     expect(state.isComplete).toBe(false);
     expect(state.startedAt).toBeDefined();
   });
@@ -92,6 +93,34 @@ describe("processAction", () => {
     );
     expect(afterAnswer.currentStepIndex).toBe(2);
     expect(afterAnswer.completedStepIds).toContain("s2");
+    expect(afterAnswer.quizErrors).toBe(0);
+  });
+
+  it('"answer" accepts any valid target note', () => {
+    const multiTargetLesson: Lesson = {
+      ...mockLesson,
+      steps: [
+        { id: "intro", type: "intro", instruction: "Intro" },
+        {
+          id: "multi",
+          type: "find-note",
+          instruction: "Encuentra un Do",
+          targetNotes: ["C3", "C4", "C5"],
+        },
+      ],
+    };
+    const state = initLesson(multiTargetLesson);
+    const afterIntro = processAction(
+      state,
+      { type: "next" },
+      multiTargetLesson,
+    );
+    const afterAnswer = processAction(
+      afterIntro,
+      { type: "answer", note: "C5" },
+      multiTargetLesson,
+    );
+    expect(afterAnswer.isComplete).toBe(true);
     expect(afterAnswer.quizErrors).toBe(0);
   });
 
@@ -179,6 +208,25 @@ describe("processAction", () => {
     expect(retried.quizErrors).toBe(1);
     expect(retried.isComplete).toBe(false);
   });
+
+  it('"repeat-main" reopens the final exercise after completion', () => {
+    const state = initLesson(mockLesson);
+    const afterIntro = processAction(state, { type: "next" }, mockLesson);
+    const afterFind = processAction(
+      afterIntro,
+      { type: "answer", note: "C4" },
+      mockLesson,
+    );
+    const complete = processAction(afterFind, { type: "next" }, mockLesson);
+    const repeated = processAction(
+      complete,
+      { type: "repeat-main" },
+      mockLesson,
+    );
+
+    expect(repeated.isComplete).toBe(false);
+    expect(repeated.currentStepIndex).toBe(2);
+  });
 });
 
 describe("calculateStars", () => {
@@ -210,7 +258,8 @@ describe("calculateStars", () => {
       ...state,
       isComplete: true,
       quizErrors: 0,
-      completedStepIds: ["s1", "s2", "s3", "s1"],
+      completedStepIds: ["s1", "s2", "s3"],
+      mainExerciseRepeated: true,
     };
     expect(calculateStars(result)).toBe(3);
   });
@@ -235,23 +284,25 @@ describe("getCurrentStep", () => {
 });
 
 describe("isLessonUnlocked", () => {
-  const allLessons: Lesson[] = [
+  const orderedLessons: Lesson[] = [
     mockLesson,
     { ...mockLesson, id: "lesson-2", order: 2 },
     { ...mockLesson, id: "lesson-3", order: 3 },
   ];
 
   it("lesson 1 is always unlocked", () => {
-    expect(isLessonUnlocked(1, [], allLessons)).toBe(true);
+    expect(isLessonUnlocked("lesson-1", [], orderedLessons)).toBe(true);
   });
 
   it("lesson 2 requires lesson 1 completed", () => {
-    expect(isLessonUnlocked(2, ["lesson-1"], allLessons)).toBe(true);
-    expect(isLessonUnlocked(2, [], allLessons)).toBe(false);
+    expect(isLessonUnlocked("lesson-2", ["lesson-1"], orderedLessons)).toBe(true);
+    expect(isLessonUnlocked("lesson-2", [], orderedLessons)).toBe(false);
   });
 
   it("lesson 3 not unlocked if lesson 2 not completed", () => {
-    expect(isLessonUnlocked(3, ["lesson-1"], allLessons)).toBe(false);
-    expect(isLessonUnlocked(3, ["lesson-1", "lesson-2"], allLessons)).toBe(true);
+    expect(isLessonUnlocked("lesson-3", ["lesson-1"], orderedLessons)).toBe(false);
+    expect(
+      isLessonUnlocked("lesson-3", ["lesson-1", "lesson-2"], orderedLessons),
+    ).toBe(true);
   });
 });

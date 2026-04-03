@@ -3,15 +3,19 @@
 import Link from "next/link";
 import Stars from "@/components/Stars";
 import ProgressBar from "@/components/ProgressBar";
-import { worlds, allLessons, getLessonById } from "@/content";
-import { allSongs } from "@/content/songs";
+import { worlds, allLessons, getLessonById, orderedLessons } from "@/content";
+import {
+  allSongs,
+  getSongMaxStars,
+  isSongUnlocked,
+} from "@/content/songs";
 import type { StudentProfile, LessonAttempt, SongAttempt } from "@/types/storage";
 
 interface ParentDashboardProps {
   student: StudentProfile;
   lessonAttempts: LessonAttempt[];
   songAttempts: SongAttempt[];
-  totalStars: number;
+  totalLessonStars: number;
   completedLessonIds: string[];
 }
 
@@ -35,12 +39,21 @@ export default function ParentDashboard({
   student,
   lessonAttempts,
   songAttempts,
-  totalStars,
+  totalLessonStars,
   completedLessonIds,
 }: ParentDashboardProps) {
   const totalLessons = allLessons.length;
   const completedCount = completedLessonIds.length;
-  const maxStars = totalLessons * 3;
+  const maxLessonStars = totalLessons * 3;
+  const totalSongStars = getTotalSongStars(songAttempts);
+  const maxSongStars = allSongs.reduce(
+    (total, song) => total + getSongMaxStars(song),
+    0,
+  );
+  const totalPracticeSeconds = getTotalPracticeSeconds(
+    lessonAttempts,
+    songAttempts,
+  );
 
   const lastSession = getLastSession(lessonAttempts, songAttempts);
   const weakAreas = getWeakAreas(lessonAttempts);
@@ -74,12 +87,22 @@ export default function ParentDashboard({
         <ProgressBar
           completed={completedCount}
           total={totalLessons}
-          totalStars={totalStars}
-          maxStars={maxStars}
+          totalStars={totalLessonStars}
+          maxStars={maxLessonStars}
         />
         <p className="mt-2 text-sm text-gray-500">
-          Lección {completedCount} de {totalLessons} · {totalStars} de {maxStars} estrellas
+          Lección {completedCount} de {totalLessons} · {totalLessonStars} de {maxLessonStars} estrellas
         </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-lg bg-purple-50 px-4 py-3 text-sm text-purple-700">
+            <p className="font-semibold">Canciones</p>
+            <p>⭐ {totalSongStars} de {maxSongStars} estrellas</p>
+          </div>
+          <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-700">
+            <p className="font-semibold">Tiempo de práctica</p>
+            <p>{formatDuration(totalPracticeSeconds)}</p>
+          </div>
+        </div>
       </section>
 
       <section className="rounded-xl border border-gray-200 bg-white p-5">
@@ -180,6 +203,63 @@ export default function ParentDashboard({
           </div>
         ))}
       </section>
+
+      <section>
+        <h2 className="mb-4 text-lg font-semibold text-gray-700">Detalle por canción</h2>
+        <div className="overflow-x-auto rounded-lg border border-gray-200">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-gray-50 text-gray-500">
+              <tr>
+                <th className="px-4 py-2 font-medium">Canción</th>
+                <th className="px-4 py-2 font-medium text-center">Estrellas</th>
+                <th className="px-4 py-2 font-medium text-center">Fragmentos</th>
+                <th className="px-4 py-2 font-medium text-center">Intentos</th>
+                <th className="px-4 py-2 font-medium text-center">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {allSongs.map((song) => {
+                const attempts = songAttempts.filter((a) => a.songId === song.id);
+                const completedFragments = getCompletedSongFragments(
+                  songAttempts,
+                  song.id,
+                ).size;
+                const fullSongCompleted = attempts.some(
+                  (attempt) => attempt.completed && attempt.fragmentId === null,
+                );
+                const songStars = getSongStars(songAttempts, song.id);
+                const unlocked = isSongUnlocked(song, completedLessonIds);
+
+                return (
+                  <tr key={song.id} className="border-t border-gray-100">
+                    <td className="px-4 py-2 text-gray-700">{song.title}</td>
+                    <td className="px-4 py-2 text-center">
+                      <Stars
+                        earned={songStars}
+                        total={getSongMaxStars(song)}
+                        size="sm"
+                      />
+                    </td>
+                    <td className="px-4 py-2 text-center text-gray-600">
+                      {completedFragments} / {song.fragments.length}
+                    </td>
+                    <td className="px-4 py-2 text-center text-gray-600">
+                      {attempts.length}
+                    </td>
+                    <td className="px-4 py-2 text-center text-gray-600">
+                      {!unlocked
+                        ? "Bloqueada"
+                        : fullSongCompleted
+                          ? "Completa"
+                          : "Disponible"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }
@@ -194,7 +274,12 @@ function getLastSession(
   lessonAttempts: LessonAttempt[],
   songAttempts: SongAttempt[],
 ): LastSessionInfo | null {
-  let latest: { createdAt: string; type: "lesson" | "song"; id: string; duration: number | null } | null = null;
+  let latest: {
+    createdAt: string;
+    type: "lesson" | "song";
+    id: string;
+    duration: number | null;
+  } | null = null;
 
   for (const a of lessonAttempts) {
     if (!latest || a.createdAt > latest.createdAt) {
@@ -204,7 +289,12 @@ function getLastSession(
 
   for (const a of songAttempts) {
     if (!latest || a.createdAt > latest.createdAt) {
-      latest = { createdAt: a.createdAt, type: "song", id: a.songId, duration: null };
+      latest = {
+        createdAt: a.createdAt,
+        type: "song",
+        id: a.songId,
+        duration: a.durationSeconds,
+      };
     }
   }
 
@@ -269,20 +359,74 @@ function getRecommendation(
   const allCompleted = completedLessonIds.length >= allLessons.length;
 
   if (!allCompleted) {
-    const sorted = [...allLessons].sort((a, b) => a.order - b.order);
-    const next = sorted.find((l) => !completedLessonIds.includes(l.id));
+    const next = orderedLessons.find((lesson) => !completedLessonIds.includes(lesson.id));
     return next
       ? `Continuar con "${next.title}"`
       : "Continuar con la siguiente lección";
   }
 
-  if (songAttempts.length === 0) {
-    return "Probar Estrellita en modo lento";
+  const nextSong = allSongs.find(
+    (song) =>
+      isSongUnlocked(song, completedLessonIds) &&
+      getSongStars(songAttempts, song.id) < getSongMaxStars(song),
+  );
+
+  if (nextSong) {
+    return `Probar "${nextSong.title}" en modo lento`;
   }
 
   if (weakAreas.length > 0) {
     return `Repetir "${weakAreas[0].title}"`;
   }
 
-  return "Probar las canciones";
+  return "Seguir practicando canciones";
+}
+
+function getCompletedSongFragments(
+  songAttempts: SongAttempt[],
+  songId: string,
+): Set<string> {
+  return new Set(
+    songAttempts
+      .filter(
+        (attempt) =>
+          attempt.songId === songId &&
+          attempt.completed &&
+          attempt.fragmentId !== null,
+      )
+      .map((attempt) => attempt.fragmentId as string),
+  );
+}
+
+function getSongStars(songAttempts: SongAttempt[], songId: string): number {
+  const completedFragments = getCompletedSongFragments(songAttempts, songId);
+  const fullSongCompleted = songAttempts.some(
+    (attempt) =>
+      attempt.songId === songId &&
+      attempt.completed &&
+      attempt.fragmentId === null,
+  );
+  return completedFragments.size + (fullSongCompleted ? 1 : 0);
+}
+
+function getTotalSongStars(songAttempts: SongAttempt[]): number {
+  return allSongs.reduce(
+    (total, song) => total + getSongStars(songAttempts, song.id),
+    0,
+  );
+}
+
+function getTotalPracticeSeconds(
+  lessonAttempts: LessonAttempt[],
+  songAttempts: SongAttempt[],
+): number {
+  const lessonSeconds = lessonAttempts.reduce(
+    (sum, attempt) => sum + (attempt.durationSeconds ?? 0),
+    0,
+  );
+  const songSeconds = songAttempts.reduce(
+    (sum, attempt) => sum + (attempt.durationSeconds ?? 0),
+    0,
+  );
+  return lessonSeconds + songSeconds;
 }

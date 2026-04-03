@@ -15,3 +15,14 @@ body {
   color: var(--foreground);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
+
+.keyboard-viewport {
+  width: 100%;
+}
+
+@media (max-width: 639px) and (orientation: portrait) {
+  .keyboard-viewport {
+    max-width: 352px;
+    margin-inline: auto;
+  }
+}
