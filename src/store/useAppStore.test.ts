@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { StudentProfile } from "@/types/storage";
+import { createEmptyAppState } from "@/types/storage";
 
 vi.mock("@/lib/repositories/student-repo", () => ({
   getOrCreateStudent: vi.fn().mockResolvedValue({
@@ -43,9 +44,7 @@ const mockStudent: StudentProfile = {
 describe("useAppStore", () => {
   beforeEach(() => {
     useAppStore.setState({
-      student: null,
-      lessonAttempts: [],
-      songAttempts: [],
+      ...createEmptyAppState(),
       hydrated: false,
     });
   });
@@ -65,6 +64,14 @@ describe("useAppStore", () => {
     });
     expect(useAppStore.getState().hydrated).toBe(true);
     expect(useAppStore.getState().student).toEqual(mockStudent);
+  });
+
+  it("hydrate with empty state still marks store as hydrated", () => {
+    useAppStore.getState().hydrate(createEmptyAppState());
+    expect(useAppStore.getState().hydrated).toBe(true);
+    expect(useAppStore.getState().student).toBeNull();
+    expect(useAppStore.getState().lessonAttempts).toEqual([]);
+    expect(useAppStore.getState().songAttempts).toEqual([]);
   });
 
   it("setStudent calls server action and sets student from DB", async () => {

@@ -5,6 +5,7 @@ import type {
   LessonAttempt,
   SongAttempt,
 } from "@/types/storage";
+import { createEmptyAppState } from "@/types/storage";
 import {
   getOrCreateStudent,
   updateCurrentLesson,
@@ -36,9 +37,7 @@ interface AppStore extends AppState {
 }
 
 export const useAppStore = create<AppStore>()((set, get) => ({
-  student: null,
-  lessonAttempts: [],
-  songAttempts: [],
+  ...createEmptyAppState(),
   hydrated: false,
 
   hydrate: (data) => set({ ...data, hydrated: true }),

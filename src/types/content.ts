@@ -8,6 +8,13 @@ export type StepType =
   | "sequence-quiz"
   | "song-fragment";
 
+export type VisualHint =
+  | "group-2-3"
+  | "find-c"
+  | "fingers-1-5"
+  | "scale-up"
+  | "song-fragment";
+
 export interface LessonStep {
   id: string;
   type: StepType;
@@ -16,6 +23,8 @@ export interface LessonStep {
   fingers?: FingerNumber[];
   demoAudio?: string;
   image?: string;
+  imageAlt?: string;
+  visualHint?: VisualHint;
 }
 
 export interface Lesson {
@@ -41,7 +50,7 @@ export interface Song {
   difficulty: "easy" | "medium";
   requiredLessonId: string;
   fragments: SongFragment[];
-  fullDemoAudio: string;
+  fullDemoAudio?: string;
 }
 
 export interface World {
@@ -60,11 +69,19 @@ export const VALID_NOTES = [
 ] as const;
 
 export const FINGER_COLORS: Record<FingerNumber, string> = {
-  1: "#C62828",
-  2: "#1565C0",
-  3: "#2E7D32",
-  4: "#E65100",
-  5: "#6A1B9A",
+  1: "#B91C1C",
+  2: "#1D4ED8",
+  3: "#166534",
+  4: "#9A3412",
+  5: "#5B21B6",
+};
+
+export const FINGER_TEXT_COLORS: Record<FingerNumber, string> = {
+  1: "#FFFFFF",
+  2: "#FFFFFF",
+  3: "#FFFFFF",
+  4: "#FFFFFF",
+  5: "#FFFFFF",
 };
 
 export const FINGER_NAMES: Record<FingerNumber, string> = {

@@ -15,6 +15,9 @@ const lesson7: Lesson = {
       type: "intro",
       instruction:
         "¡Ya estás listo para tocar canciones! Pero primero, practiquemos unos fragmentos.",
+      image: "/illustrations/lesson-7/intro.svg",
+      imageAlt: "Notas de una canción corta divididas en pequeños fragmentos para practicar.",
+      visualHint: "song-fragment",
     },
     {
       id: "lesson-7-s2",
@@ -38,7 +41,7 @@ const lesson7: Lesson = {
       id: "lesson-7-s5",
       type: "demo",
       instruction: "Ahora escucha el inicio del Himno de la Alegría",
-      targetNotes: ["E4", "E4", "F4", "G4", "G4", "F4", "E4"],
+      targetNotes: ["E4", "E4", "F4", "G4", "G4", "F4", "E4", "E4"],
     },
     {
       id: "lesson-7-s6",

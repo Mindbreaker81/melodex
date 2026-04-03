@@ -63,18 +63,13 @@ export default function SongPlayerPage() {
     undefined,
   );
   const listenTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const listenAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     return () => {
       if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
       for (const timer of listenTimersRef.current) clearTimeout(timer);
       listenTimersRef.current = [];
-      listenAudioRef.current?.pause();
-      if (listenAudioRef.current) {
-        listenAudioRef.current.currentTime = 0;
-      }
-      listenAudioRef.current = null;
+      audioEngine.stop();
     };
   }, []);
 
@@ -83,6 +78,11 @@ export default function SongPlayerPage() {
       router.push("/onboarding");
     }
   }, [hydrated, student, router]);
+
+  useEffect(() => {
+    if (!song) return;
+    void audioEngine.preloadNotes(getAllNotes(song).map((note) => note.note));
+  }, [song]);
 
   function resumeAudio() {
     if (!audioResumedRef.current) {
@@ -104,14 +104,6 @@ export default function SongPlayerPage() {
   function clearListenTimers() {
     for (const timer of listenTimersRef.current) clearTimeout(timer);
     listenTimersRef.current = [];
-  }
-
-  function stopListenAudio() {
-    listenAudioRef.current?.pause();
-    if (listenAudioRef.current) {
-      listenAudioRef.current.currentTime = 0;
-    }
-    listenAudioRef.current = null;
   }
 
   function scheduleListenHighlights() {
@@ -141,7 +133,6 @@ export default function SongPlayerPage() {
     setIsPlaying(false);
     setListenNoteIdx(null);
     clearListenTimers();
-    stopListenAudio();
 
     setMode(newMode);
     setFragmentComplete(false);
@@ -173,28 +164,20 @@ export default function SongPlayerPage() {
     resumeAudio();
     audioEngine.stop();
     clearListenTimers();
-    stopListenAudio();
     scheduleListenHighlights();
 
     if (song.fullDemoAudio) {
-      const audio = new Audio(song.fullDemoAudio);
-      audio.playbackRate = tempoPercent;
-      listenAudioRef.current = audio;
-
-      try {
-        await audio.play();
+      const asset = await audioEngine.playAsset(song.fullDemoAudio, tempoPercent);
+      if (asset) {
         return;
-      } catch {
-        listenAudioRef.current = null;
       }
     }
 
-    audioEngine.playSequence(getAllNotes(song), tempoPercent);
+    await audioEngine.playReferenceSequence(getAllNotes(song), tempoPercent);
   }
 
   function handleStopListen() {
     audioEngine.stop();
-    stopListenAudio();
     setIsPlaying(false);
     setListenNoteIdx(null);
     clearListenTimers();
@@ -217,7 +200,7 @@ export default function SongPlayerPage() {
   function handleNoteClick(note: string) {
     if (!song || !playState || playState.isComplete) return;
     resumeAudio();
-    audioEngine.playNote(note);
+    void audioEngine.playReferenceNote(note);
 
     const newState = processNoteInput(playState, note, song);
 

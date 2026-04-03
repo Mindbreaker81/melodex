@@ -14,12 +14,18 @@ const lesson4: Lesson = {
       id: "lesson-4-s1",
       type: "intro",
       instruction: "Tu mano derecha tiene 5 dedos numerados del 1 al 5",
+      image: "/illustrations/lesson-4/intro.svg",
+      imageAlt: "Mano derecha con los cinco dedos numerados del 1 al 5.",
+      visualHint: "fingers-1-5",
     },
     {
       id: "lesson-4-s2",
       type: "intro",
       instruction:
         "Pulgar = 1, Índice = 2, Medio = 3, Anular = 4, Meñique = 5",
+      image: "/illustrations/lesson-4/intro.svg",
+      imageAlt: "Mano derecha mostrando cada dedo con su número correspondiente.",
+      visualHint: "fingers-1-5",
     },
     {
       id: "lesson-4-s3",
@@ -64,6 +70,9 @@ const lesson5: Lesson = {
       id: "lesson-5-s1",
       type: "intro",
       instruction: "Vamos a tocar Do, Re, Mi con los dedos 1, 2 y 3",
+      image: "/illustrations/lesson-5/intro.svg",
+      imageAlt: "Tres dedos colocados sobre Do, Re y Mi en el teclado.",
+      visualHint: "scale-up",
     },
     {
       id: "lesson-5-s2",
@@ -128,6 +137,9 @@ const lesson6: Lesson = {
       id: "lesson-6-s1",
       type: "intro",
       instruction: "¡Ya conoces todas las notas! Ahora con los 5 dedos",
+      image: "/illustrations/lesson-6/intro.svg",
+      imageAlt: "Cinco dedos apoyados sobre Do, Re, Mi, Fa y Sol.",
+      visualHint: "scale-up",
     },
     {
       id: "lesson-6-s2",

@@ -1,6 +1,11 @@
 "use client";
 
-import { type FingerNumber, FINGER_COLORS, FINGER_NAMES } from "@/types/content";
+import {
+  type FingerNumber,
+  FINGER_COLORS,
+  FINGER_NAMES,
+  FINGER_TEXT_COLORS,
+} from "@/types/content";
 
 interface KeyboardProps {
   activeNote?: string | null;
@@ -24,7 +29,7 @@ const SPANISH_NAMES: Record<string, string> = {
 const WHITE_NOTES = ["C", "D", "E", "F", "G", "A", "B"];
 const NOTES_WITH_SHARP = new Set(["C", "D", "F", "G", "A"]);
 const WHITE_KEY_WIDTH = 44;
-const BLACK_KEY_WIDTH = 36;
+const BLACK_KEY_WIDTH = 44;
 
 interface KeyInfo {
   note: string;
@@ -103,11 +108,12 @@ export default function Keyboard({
   }
 
   return (
-    <div>
+    <div className="relative">
       <p className="mb-2 text-center text-xs text-gray-400 sm:hidden">
-        📱 Gira tu dispositivo para ver el teclado completo
+        📱 En vertical ves 1 octava. Desliza para ver más teclas o gira el dispositivo.
       </p>
-      <div className="keyboard-viewport overflow-x-auto">
+      <div className="keyboard-scroll-hint pointer-events-none absolute inset-y-7 right-0 z-20 w-10 sm:hidden" />
+      <div className="keyboard-viewport overflow-x-auto pb-2">
         <div
           className="relative inline-flex"
           style={{ width: whiteKeys.length * WHITE_KEY_WIDTH }}
@@ -121,6 +127,9 @@ export default function Keyboard({
               style={{
                 width: WHITE_KEY_WIDTH,
                 minWidth: WHITE_KEY_WIDTH,
+                color: isActive(key.note) && activeFinger
+                  ? FINGER_TEXT_COLORS[activeFinger]
+                  : undefined,
                 ...keyStyle(key.note),
               }}
               onClick={() => onKeyClick?.(key.note)}
@@ -142,6 +151,9 @@ export default function Keyboard({
                 width: BLACK_KEY_WIDTH,
                 left:
                   (key.whiteIndex + 1) * WHITE_KEY_WIDTH - BLACK_KEY_WIDTH / 2,
+                color: isActive(key.note) && activeFinger
+                  ? FINGER_TEXT_COLORS[activeFinger]
+                  : undefined,
                 ...keyStyle(key.note),
               }}
               onClick={() => onKeyClick?.(key.note)}

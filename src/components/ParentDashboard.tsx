@@ -9,6 +9,7 @@ import {
   getSongMaxStars,
   isSongUnlocked,
 } from "@/content/songs";
+import { buildPracticeSessions } from "@/lib/session-utils";
 import type { StudentProfile, LessonAttempt, SongAttempt } from "@/types/storage";
 
 interface ParentDashboardProps {
@@ -113,13 +114,14 @@ export default function ParentDashboard({
               <span className="font-medium">Fecha:</span> {lastSession.date}
             </p>
             <p>
-              <span className="font-medium">Actividad:</span> {lastSession.activity}
+              <span className="font-medium">Actividades:</span> {lastSession.activities}
             </p>
-            {lastSession.duration && (
-              <p>
-                <span className="font-medium">Duración:</span> {lastSession.duration}
-              </p>
-            )}
+            <p>
+              <span className="font-medium">Intentos:</span> {lastSession.attemptCount}
+            </p>
+            <p>
+              <span className="font-medium">Duración:</span> {lastSession.duration}
+            </p>
           </div>
         ) : (
           <p className="text-sm text-gray-500">Aún no hay sesiones registradas</p>
@@ -127,7 +129,7 @@ export default function ParentDashboard({
       </section>
 
       <section className="rounded-xl border border-gray-200 bg-white p-5">
-        <h2 className="mb-3 text-lg font-semibold text-gray-700">Áreas débiles</h2>
+        <h2 className="mb-3 text-lg font-semibold text-gray-700">Áreas a reforzar</h2>
         {weakAreas.length > 0 ? (
           <ul className="flex flex-col gap-2">
             {weakAreas.map((area) => (
@@ -266,54 +268,34 @@ export default function ParentDashboard({
 
 interface LastSessionInfo {
   date: string;
-  activity: string;
-  duration: string | null;
+  activities: string;
+  duration: string;
+  attemptCount: number;
 }
 
 function getLastSession(
   lessonAttempts: LessonAttempt[],
   songAttempts: SongAttempt[],
 ): LastSessionInfo | null {
-  let latest: {
-    createdAt: string;
-    type: "lesson" | "song";
-    id: string;
-    duration: number | null;
-  } | null = null;
-
-  for (const a of lessonAttempts) {
-    if (!latest || a.createdAt > latest.createdAt) {
-      latest = { createdAt: a.createdAt, type: "lesson", id: a.lessonId, duration: a.durationSeconds };
-    }
-  }
-
-  for (const a of songAttempts) {
-    if (!latest || a.createdAt > latest.createdAt) {
-      latest = {
-        createdAt: a.createdAt,
-        type: "song",
-        id: a.songId,
-        duration: a.durationSeconds,
-      };
-    }
-  }
-
+  const latest = buildPracticeSessions(lessonAttempts, songAttempts).at(-1);
   if (!latest) return null;
 
-  let activity: string;
-  if (latest.type === "lesson") {
-    const lesson = getLessonById(latest.id);
-    activity = lesson ? `Lección: ${lesson.title}` : `Lección desconocida`;
-  } else {
-    const song = allSongs.find((s) => s.id === latest!.id);
-    activity = song ? `Canción: ${song.title}` : `Canción desconocida`;
+  return {
+    date: formatDate(latest.startedAt),
+    activities: latest.activities.map(formatActivityLabel).join(" · "),
+    duration: formatDuration(latest.durationSeconds),
+    attemptCount: latest.attemptCount,
+  };
+}
+
+function formatActivityLabel(activity: { type: "lesson" | "song"; id: string }) {
+  if (activity.type === "lesson") {
+    const lesson = getLessonById(activity.id);
+    return lesson ? `Lección: ${lesson.title}` : "Lección desconocida";
   }
 
-  return {
-    date: formatDate(latest.createdAt),
-    activity,
-    duration: latest.duration != null ? formatDuration(latest.duration) : null,
-  };
+  const song = allSongs.find((item) => item.id === activity.id);
+  return song ? `Canción: ${song.title}` : "Canción desconocida";
 }
 
 interface WeakArea {

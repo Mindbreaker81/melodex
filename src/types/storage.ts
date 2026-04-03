@@ -33,3 +33,17 @@ export interface AppState {
   lessonAttempts: LessonAttempt[];
   songAttempts: SongAttempt[];
 }
+
+export const EMPTY_APP_STATE: AppState = {
+  student: null,
+  lessonAttempts: [],
+  songAttempts: [],
+};
+
+export function createEmptyAppState(): AppState {
+  return {
+    student: null,
+    lessonAttempts: [],
+    songAttempts: [],
+  };
+}

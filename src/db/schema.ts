@@ -5,6 +5,7 @@ import {
   integer,
   boolean,
   timestamp,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const families = pgTable("families", {
@@ -15,45 +16,71 @@ export const families = pgTable("families", {
     .notNull(),
 });
 
-export const students = pgTable("students", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  familyId: uuid("family_id")
-    .references(() => families.id, { onDelete: "cascade" })
-    .notNull(),
-  displayName: text("display_name").notNull(),
-  avatar: text("avatar").notNull(),
-  currentLessonId: text("current_lesson_id").notNull().default("lesson-1"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+export const students = pgTable(
+  "students",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    familyId: uuid("family_id")
+      .references(() => families.id, { onDelete: "cascade" })
+      .notNull(),
+    displayName: text("display_name").notNull(),
+    avatar: text("avatar").notNull(),
+    currentLessonId: text("current_lesson_id").notNull().default("lesson-1"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("students_family_id_idx").on(table.familyId),
+  ],
+);
 
-export const lessonAttempts = pgTable("lesson_attempts", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  studentId: uuid("student_id")
-    .references(() => students.id, { onDelete: "cascade" })
-    .notNull(),
-  lessonId: text("lesson_id").notNull(),
-  stars: integer("stars").notNull(),
-  quizErrors: integer("quiz_errors").notNull().default(0),
-  completed: boolean("completed").notNull().default(false),
-  durationSeconds: integer("duration_seconds"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+export const lessonAttempts = pgTable(
+  "lesson_attempts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    studentId: uuid("student_id")
+      .references(() => students.id, { onDelete: "cascade" })
+      .notNull(),
+    lessonId: text("lesson_id").notNull(),
+    stars: integer("stars").notNull(),
+    quizErrors: integer("quiz_errors").notNull().default(0),
+    completed: boolean("completed").notNull().default(false),
+    durationSeconds: integer("duration_seconds"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("lesson_attempts_student_id_idx").on(table.studentId),
+    index("lesson_attempts_student_created_at_idx").on(
+      table.studentId,
+      table.createdAt,
+    ),
+  ],
+);
 
-export const songAttempts = pgTable("song_attempts", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  studentId: uuid("student_id")
-    .references(() => students.id, { onDelete: "cascade" })
-    .notNull(),
-  songId: text("song_id").notNull(),
-  fragmentId: text("fragment_id"),
-  completed: boolean("completed").notNull().default(false),
-  tempoPercent: integer("tempo_percent").notNull().default(100),
-  durationSeconds: integer("duration_seconds"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+export const songAttempts = pgTable(
+  "song_attempts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    studentId: uuid("student_id")
+      .references(() => students.id, { onDelete: "cascade" })
+      .notNull(),
+    songId: text("song_id").notNull(),
+    fragmentId: text("fragment_id"),
+    completed: boolean("completed").notNull().default(false),
+    tempoPercent: integer("tempo_percent").notNull().default(100),
+    durationSeconds: integer("duration_seconds"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("song_attempts_student_id_idx").on(table.studentId),
+    index("song_attempts_student_created_at_idx").on(
+      table.studentId,
+      table.createdAt,
+    ),
+  ],
+);

@@ -5,7 +5,6 @@ export const himnoAlegria: Song = {
   title: "Himno de la Alegría",
   difficulty: "easy",
   requiredLessonId: "lesson-6",
-  fullDemoAudio: "/audio/songs/himno-alegria.wav",
   fragments: [
     {
       id: "himno-f1",
@@ -43,14 +42,7 @@ export const himnoAlegria: Song = {
         { note: "G4", finger: 5, durationMs: 500 },
         { note: "F4", finger: 4, durationMs: 500 },
         { note: "E4", finger: 3, durationMs: 500 },
-        { note: "E4", finger: 3, durationMs: 500 },
-        { note: "G4", finger: 5, durationMs: 500 },
-        { note: "G4", finger: 5, durationMs: 500 },
-        { note: "F4", finger: 4, durationMs: 500 },
-        { note: "E4", finger: 3, durationMs: 500 },
-        { note: "E4", finger: 3, durationMs: 500 },
-        { note: "F4", finger: 4, durationMs: 500 },
-        { note: "G4", finger: 5, durationMs: 1000 },
+        { note: "E4", finger: 3, durationMs: 1000 },
       ],
     },
   ],

@@ -20,9 +20,65 @@ body {
   width: 100%;
 }
 
+.keyboard-scroll-hint {
+  display: none;
+}
+
+.lesson-intro-visual {
+  width: 100%;
+  max-width: 24rem;
+}
+
+.lesson-intro-visual-bob {
+  animation: lesson-bob 3.2s ease-in-out infinite;
+}
+
+.lesson-intro-visual-pulse {
+  animation: lesson-pulse 2.8s ease-in-out infinite;
+}
+
+.lesson-intro-visual-slide {
+  animation: lesson-slide 3.4s ease-in-out infinite;
+}
+
 @media (max-width: 639px) and (orientation: portrait) {
   .keyboard-viewport {
     max-width: 352px;
     margin-inline: auto;
+  }
+
+  .keyboard-scroll-hint {
+    display: block;
+    background: linear-gradient(to left, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0));
+  }
+}
+
+@keyframes lesson-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes lesson-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+@keyframes lesson-slide {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(4px);
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -18,7 +19,7 @@ import {
 import { useAppStore } from "@/store/useAppStore";
 import { audioEngine } from "@/lib/audio";
 import Keyboard from "@/components/Keyboard";
-import type { Lesson } from "@/types/content";
+import type { Lesson, LessonStep } from "@/types/content";
 
 function ProgressBar({ current, total }: { current: number; total: number }) {
   const pct = total > 0 ? (current / total) * 100 : 0;
@@ -42,6 +43,25 @@ function StarsDisplay({ earned }: { earned: number }) {
       ))}
     </div>
   );
+}
+
+function calculateDurationSeconds(startedAt: string): number {
+  return Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
+}
+
+function getIntroVisualClass(step: LessonStep): string {
+  switch (step.visualHint) {
+    case "group-2-3":
+      return "lesson-intro-visual lesson-intro-visual-bob";
+    case "find-c":
+    case "scale-up":
+      return "lesson-intro-visual lesson-intro-visual-slide";
+    case "fingers-1-5":
+    case "song-fragment":
+      return "lesson-intro-visual lesson-intro-visual-pulse";
+    default:
+      return "lesson-intro-visual";
+  }
 }
 
 function CompletionScreen({
@@ -134,6 +154,11 @@ export default function LessonPlayerPage() {
     savedForLessonRef.current = null;
   }, [lessonId]);
 
+  useEffect(() => {
+    if (!lesson) return;
+    void audioEngine.preloadNotes(lesson.notesUsed);
+  }, [lesson]);
+
   function resumeAudio() {
     if (!audioResumedRef.current) {
       audioEngine.resume();
@@ -161,9 +186,7 @@ export default function LessonPlayerPage() {
         stars: calculateStars(newState),
         quizErrors: newState.quizErrors,
         completed: true,
-        durationSeconds: Math.floor(
-          (Date.now() - new Date(newState.startedAt).getTime()) / 1000,
-        ),
+        durationSeconds: calculateDurationSeconds(newState.startedAt),
       });
       const completedIds = useAppStore.getState().getCompletedLessonIds();
       const projectedCompletedIds = completedIds.includes(lesson.id)
@@ -182,18 +205,24 @@ export default function LessonPlayerPage() {
     saveIfComplete(newState);
   }
 
-  async function handlePlayDemo(notes: string[]) {
+  async function handlePlayDemo(step: LessonStep) {
     resumeAudio();
-    for (const note of notes) {
-      audioEngine.playNote(note, 0.5);
-      await new Promise((r) => setTimeout(r, 600));
+    if (step.demoAudio) {
+      const asset = await audioEngine.playAsset(step.demoAudio);
+      if (asset) return;
     }
+
+    const sequence = (step.targetNotes ?? []).map((note) => ({
+      note,
+      durationMs: 500,
+    }));
+    await audioEngine.playReferenceSequence(sequence);
   }
 
   function handleNoteClick(note: string) {
     if (!lessonState || !lesson || lessonState.isComplete) return;
     resumeAudio();
-    audioEngine.playNote(note);
+    void audioEngine.playReferenceNote(note);
 
     const step = getCurrentStep(lessonState, lesson);
     if (!step) return;
@@ -317,6 +346,19 @@ export default function LessonPlayerPage() {
           errorFlash ? "bg-red-50" : ""
         }`}
       >
+        {step.type === "intro" && step.image && (
+          <div className={getIntroVisualClass(step)}>
+            <Image
+              src={step.image}
+              alt={step.imageAlt ?? ""}
+              width={360}
+              height={220}
+              priority
+              className="h-auto w-full max-w-sm rounded-3xl border border-purple-100 bg-white shadow-sm"
+            />
+          </div>
+        )}
+
         <p className="max-w-lg text-center text-2xl font-semibold text-gray-800">
           {step.instruction}
         </p>
@@ -335,7 +377,7 @@ export default function LessonPlayerPage() {
           <div className="flex flex-col items-center gap-4">
             <button
               type="button"
-              onClick={() => handlePlayDemo(step.targetNotes ?? [])}
+              onClick={() => handlePlayDemo(step)}
               className="min-h-[48px] rounded-2xl bg-yellow-500 px-10 py-4 text-xl font-bold text-white transition-colors hover:bg-yellow-600"
             >
               🔊 Escuchar
@@ -363,7 +405,7 @@ export default function LessonPlayerPage() {
               activeFinger={step.fingers?.[0]}
               onKeyClick={(note) => {
                 resumeAudio();
-                audioEngine.playNote(note);
+                void audioEngine.playReferenceNote(note);
               }}
             />
             <button

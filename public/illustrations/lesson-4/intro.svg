@@ -1,0 +1,15 @@
+<svg width="360" height="220" viewBox="0 0 360 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="360" height="220" rx="24" fill="#FEF2F2"/>
+  <path d="M101 171C96 144 102 96 120 70C130 55 145 51 154 63C163 53 178 57 183 72C191 63 206 65 212 78C219 70 233 73 237 89C246 106 248 136 243 171H101Z" fill="#FECACA" stroke="#F87171" stroke-width="3"/>
+  <circle cx="120" cy="64" r="16" fill="#B91C1C"/>
+  <circle cx="154" cy="54" r="16" fill="#1D4ED8"/>
+  <circle cx="184" cy="62" r="16" fill="#166534"/>
+  <circle cx="214" cy="70" r="16" fill="#9A3412"/>
+  <circle cx="240" cy="84" r="16" fill="#5B21B6"/>
+  <text x="120" y="69" text-anchor="middle" font-size="14" font-weight="700" fill="#FFFFFF" font-family="Arial, sans-serif">1</text>
+  <text x="154" y="59" text-anchor="middle" font-size="14" font-weight="700" fill="#FFFFFF" font-family="Arial, sans-serif">2</text>
+  <text x="184" y="67" text-anchor="middle" font-size="14" font-weight="700" fill="#FFFFFF" font-family="Arial, sans-serif">3</text>
+  <text x="214" y="75" text-anchor="middle" font-size="14" font-weight="700" fill="#FFFFFF" font-family="Arial, sans-serif">4</text>
+  <text x="240" y="89" text-anchor="middle" font-size="14" font-weight="700" fill="#FFFFFF" font-family="Arial, sans-serif">5</text>
+  <text x="180" y="200" text-anchor="middle" font-size="18" font-weight="700" fill="#991B1B" font-family="Arial, sans-serif">Cada dedo tiene un número</text>
+</svg>

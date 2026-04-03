@@ -1,32 +1,64 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { noteToFrequency, noteToMidi } from "@/lib/audio";
 
-const mockOscillator = {
-  connect: vi.fn(),
-  start: vi.fn(),
-  stop: vi.fn(),
-  disconnect: vi.fn(),
-  type: "triangle" as OscillatorType,
-  frequency: { setValueAtTime: vi.fn() },
-  onended: null as (() => void) | null,
-};
+function createOscillatorMock() {
+  return {
+    connect: vi.fn(),
+    start: vi.fn(),
+    stop: vi.fn(),
+    disconnect: vi.fn(),
+    type: "triangle" as OscillatorType,
+    frequency: { setValueAtTime: vi.fn() },
+    onended: null as (() => void) | null,
+  };
+}
 
-const mockContext = {
-  createOscillator: vi.fn(() => ({ ...mockOscillator })),
-  createGain: vi.fn(() => ({
+function createBufferSourceMock() {
+  return {
+    buffer: null as AudioBuffer | null,
+    connect: vi.fn(),
+    start: vi.fn(),
+    stop: vi.fn(),
+    disconnect: vi.fn(),
+    onended: null as (() => void) | null,
+  };
+}
+
+function createGainMock() {
+  return {
     connect: vi.fn(),
     disconnect: vi.fn(),
     gain: { setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn() },
-  })),
-  createBufferSource: vi.fn(),
-  decodeAudioData: vi.fn(),
+  };
+}
+
+const mockContext = {
+  createOscillator: vi.fn(() => createOscillatorMock()),
+  createGain: vi.fn(() => createGainMock()),
+  createBufferSource: vi.fn(() => createBufferSourceMock()),
+  decodeAudioData: vi.fn(async () => ({ id: "buffer" }) as unknown as AudioBuffer),
   currentTime: 0,
   destination: {},
   state: "running" as AudioContextState,
   resume: vi.fn(),
 };
 
+const fetchMock = vi.fn();
+const audioPlayMock = vi.fn();
+const audioPauseMock = vi.fn();
+const AudioMock = vi.fn().mockImplementation((url: string) => ({
+  src: url,
+  playbackRate: 1,
+  currentTime: 0,
+  play: audioPlayMock,
+  pause: audioPauseMock,
+  onended: null as (() => void) | null,
+  onerror: null as (() => void) | null,
+}));
+
 vi.stubGlobal("AudioContext", vi.fn(() => mockContext));
+vi.stubGlobal("fetch", fetchMock);
+vi.stubGlobal("Audio", AudioMock as unknown as typeof Audio);
 
 describe("noteToMidi", () => {
   it("returns 60 for C4", () => {
@@ -71,12 +103,15 @@ describe("AudioEngine", () => {
     vi.clearAllMocks();
     mockContext.currentTime = 0;
     mockContext.state = "running";
-    mockContext.createOscillator.mockReturnValue({ ...mockOscillator });
-    mockContext.createGain.mockReturnValue({
-      connect: vi.fn(),
-      disconnect: vi.fn(),
-      gain: { setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn() },
+    mockContext.createOscillator.mockImplementation(() => createOscillatorMock());
+    mockContext.createGain.mockImplementation(() => createGainMock());
+    mockContext.createBufferSource.mockImplementation(() => createBufferSourceMock());
+    mockContext.decodeAudioData.mockResolvedValue({ id: "buffer" } as unknown as AudioBuffer);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
     });
+    audioPlayMock.mockResolvedValue(undefined);
 
     const mod = await import("@/lib/audio");
     AudioEngine = mod.AudioEngine;
@@ -124,22 +159,49 @@ describe("AudioEngine", () => {
     expect(osc2.stop).toHaveBeenCalledWith(1.0);
   });
 
-  it("stop clears active nodes", async () => {
-    const mockStop = vi.fn();
-    const mockDisconnect = vi.fn();
-    mockContext.createOscillator.mockReturnValue({
-      ...mockOscillator,
-      stop: mockStop,
-      disconnect: mockDisconnect,
-      onended: null,
+  it("playReferenceNote prefers note samples when available", async () => {
+    const engine = new AudioEngine();
+    await engine.playReferenceNote("A4", 0.5);
+
+    expect(fetchMock).toHaveBeenCalledWith("/audio/notes/A4.wav");
+    expect(mockContext.createBufferSource).toHaveBeenCalled();
+    expect(mockContext.createOscillator).not.toHaveBeenCalled();
+  });
+
+  it("playReferenceNote falls back to oscillator when sample loading fails", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      arrayBuffer: vi.fn(),
     });
 
     const engine = new AudioEngine();
-    await engine.playNote("A4", 2.0);
+    await engine.playReferenceNote("A4", 0.5);
+
+    expect(mockContext.createOscillator).toHaveBeenCalled();
+  });
+
+  it("playAsset uses HTML audio with playbackRate", async () => {
+    const engine = new AudioEngine();
+    const audio = await engine.playAsset("/audio/songs/estrellita.wav", 0.75);
+
+    expect(AudioMock).toHaveBeenCalledWith("/audio/songs/estrellita.wav");
+    expect(audioPlayMock).toHaveBeenCalled();
+    expect(audio?.playbackRate).toBe(0.75);
+  });
+
+  it("stop clears active nodes and playing assets", async () => {
+    const engine = new AudioEngine();
+    await engine.playReferenceNote("A4", 2.0);
+    const audio = await engine.playAsset("/audio/songs/estrellita.wav");
+
+    const source = mockContext.createBufferSource.mock.results[0].value;
 
     engine.stop();
-    expect(mockStop).toHaveBeenCalled();
-    expect(mockDisconnect).toHaveBeenCalled();
+
+    expect(source.stop).toHaveBeenCalled();
+    expect(source.disconnect).toHaveBeenCalled();
+    expect(audioPauseMock).toHaveBeenCalled();
+    expect(audio?.currentTime).toBe(0);
   });
 
   it("resume calls ctx.resume when suspended", async () => {

@@ -1,0 +1,16 @@
+<svg width="360" height="220" viewBox="0 0 360 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="360" height="220" rx="24" fill="#FFF7ED"/>
+  <rect x="28" y="60" width="52" height="112" rx="10" fill="#FEE2E2" stroke="#FDBA74" stroke-width="2"/>
+  <rect x="84" y="60" width="52" height="112" rx="10" fill="#DBEAFE" stroke="#FDBA74" stroke-width="2"/>
+  <rect x="140" y="60" width="52" height="112" rx="10" fill="#DCFCE7" stroke="#FDBA74" stroke-width="2"/>
+  <rect x="196" y="60" width="52" height="112" rx="10" fill="#FED7AA" stroke="#FDBA74" stroke-width="2"/>
+  <rect x="252" y="60" width="52" height="112" rx="10" fill="#E9D5FF" stroke="#FDBA74" stroke-width="2"/>
+  <text x="54" y="152" text-anchor="middle" font-size="16" font-weight="700" fill="#9A3412" font-family="Arial, sans-serif">Do</text>
+  <text x="110" y="152" text-anchor="middle" font-size="16" font-weight="700" fill="#9A3412" font-family="Arial, sans-serif">Re</text>
+  <text x="166" y="152" text-anchor="middle" font-size="16" font-weight="700" fill="#9A3412" font-family="Arial, sans-serif">Mi</text>
+  <text x="222" y="152" text-anchor="middle" font-size="16" font-weight="700" fill="#9A3412" font-family="Arial, sans-serif">Fa</text>
+  <text x="278" y="152" text-anchor="middle" font-size="16" font-weight="700" fill="#9A3412" font-family="Arial, sans-serif">Sol</text>
+  <path d="M54 38H278" stroke="#F97316" stroke-width="4" stroke-linecap="round"/>
+  <path d="M278 38L266 31V45L278 38Z" fill="#F97316"/>
+  <text x="180" y="200" text-anchor="middle" font-size="18" font-weight="700" fill="#C2410C" font-family="Arial, sans-serif">Sube hasta Sol con 5 dedos</text>
+</svg>

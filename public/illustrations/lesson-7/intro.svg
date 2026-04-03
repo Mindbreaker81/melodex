@@ -1,0 +1,16 @@
+<svg width="360" height="220" viewBox="0 0 360 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="360" height="220" rx="24" fill="#FAF5FF"/>
+  <rect x="42" y="58" width="88" height="104" rx="16" fill="#EDE9FE" stroke="#C4B5FD" stroke-width="2"/>
+  <rect x="136" y="58" width="88" height="104" rx="16" fill="#DDD6FE" stroke="#A78BFA" stroke-width="2"/>
+  <rect x="230" y="58" width="88" height="104" rx="16" fill="#C4B5FD" stroke="#8B5CF6" stroke-width="2"/>
+  <circle cx="72" cy="90" r="8" fill="#5B21B6"/>
+  <circle cx="94" cy="90" r="8" fill="#5B21B6"/>
+  <circle cx="166" cy="90" r="8" fill="#5B21B6"/>
+  <circle cx="188" cy="90" r="8" fill="#5B21B6"/>
+  <circle cx="260" cy="90" r="8" fill="#5B21B6"/>
+  <circle cx="282" cy="90" r="8" fill="#5B21B6"/>
+  <text x="86" y="140" text-anchor="middle" font-size="16" font-weight="700" fill="#6D28D9" font-family="Arial, sans-serif">Fragmento 1</text>
+  <text x="180" y="140" text-anchor="middle" font-size="16" font-weight="700" fill="#6D28D9" font-family="Arial, sans-serif">Fragmento 2</text>
+  <text x="274" y="140" text-anchor="middle" font-size="16" font-weight="700" fill="#FFFFFF" font-family="Arial, sans-serif">Canción</text>
+  <text x="180" y="198" text-anchor="middle" font-size="18" font-weight="700" fill="#6D28D9" font-family="Arial, sans-serif">Aprende una canción por partes</text>
+</svg>

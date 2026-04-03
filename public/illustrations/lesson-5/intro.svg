@@ -1,0 +1,16 @@
+<svg width="360" height="220" viewBox="0 0 360 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="360" height="220" rx="24" fill="#EEF2FF"/>
+  <rect x="54" y="60" width="64" height="112" rx="10" fill="#DBEAFE" stroke="#93C5FD" stroke-width="2"/>
+  <rect x="124" y="60" width="64" height="112" rx="10" fill="#FFFFFF" stroke="#C7D2FE" stroke-width="2"/>
+  <rect x="194" y="60" width="64" height="112" rx="10" fill="#FFFFFF" stroke="#C7D2FE" stroke-width="2"/>
+  <text x="86" y="152" text-anchor="middle" font-size="18" font-weight="700" fill="#1D4ED8" font-family="Arial, sans-serif">Do</text>
+  <text x="156" y="152" text-anchor="middle" font-size="18" font-weight="700" fill="#1D4ED8" font-family="Arial, sans-serif">Re</text>
+  <text x="226" y="152" text-anchor="middle" font-size="18" font-weight="700" fill="#1D4ED8" font-family="Arial, sans-serif">Mi</text>
+  <circle cx="86" cy="92" r="16" fill="#B91C1C"/>
+  <circle cx="156" cy="92" r="16" fill="#1D4ED8"/>
+  <circle cx="226" cy="92" r="16" fill="#166534"/>
+  <text x="86" y="97" text-anchor="middle" font-size="14" font-weight="700" fill="#FFFFFF" font-family="Arial, sans-serif">1</text>
+  <text x="156" y="97" text-anchor="middle" font-size="14" font-weight="700" fill="#FFFFFF" font-family="Arial, sans-serif">2</text>
+  <text x="226" y="97" text-anchor="middle" font-size="14" font-weight="700" fill="#FFFFFF" font-family="Arial, sans-serif">3</text>
+  <text x="180" y="200" text-anchor="middle" font-size="18" font-weight="700" fill="#3730A3" font-family="Arial, sans-serif">Do · Re · Mi con 1, 2 y 3</text>
+</svg>

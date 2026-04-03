@@ -49,10 +49,16 @@ export function noteToFrequency(note: string): number {
 
 const FADE_OUT_DURATION = 0.05;
 
+export interface ReferenceSequenceNote {
+  note: string;
+  durationMs: number;
+}
+
 export class AudioEngine {
   private ctx: AudioContext | null = null;
   private sampleCache: Map<string, AudioBuffer> = new Map();
   private activeNodes: Array<AudioBufferSourceNode | OscillatorNode> = [];
+  private activeAssets: HTMLAudioElement[] = [];
 
   private getContext(): AudioContext {
     if (!this.ctx) {
@@ -64,6 +70,76 @@ export class AudioEngine {
     return this.ctx;
   }
 
+  private cleanupNode(node: AudioBufferSourceNode | OscillatorNode) {
+    const idx = this.activeNodes.indexOf(node);
+    if (idx !== -1) this.activeNodes.splice(idx, 1);
+    node.disconnect();
+  }
+
+  private scheduleOscillator(note: string, startTime: number, duration: number) {
+    const ctx = this.getContext();
+    const freq = noteToFrequency(note);
+
+    const osc = ctx.createOscillator();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(freq, startTime);
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(1, startTime);
+    gain.gain.linearRampToValueAtTime(
+      0,
+      Math.max(startTime + duration - FADE_OUT_DURATION, startTime),
+    );
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(startTime);
+    osc.stop(startTime + duration);
+
+    this.activeNodes.push(osc);
+
+    osc.onended = () => {
+      this.cleanupNode(osc);
+      gain.disconnect();
+    };
+  }
+
+  private scheduleSample(note: string, startTime: number, duration?: number): boolean {
+    const buffer = this.sampleCache.get(note);
+    if (!buffer) return false;
+
+    const ctx = this.getContext();
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(1, startTime);
+    if (duration !== undefined) {
+      gain.gain.linearRampToValueAtTime(
+        0,
+        Math.max(startTime + duration - FADE_OUT_DURATION, startTime),
+      );
+    }
+
+    source.connect(gain);
+    gain.connect(ctx.destination);
+    source.start(startTime);
+
+    if (duration !== undefined) {
+      source.stop(startTime + duration);
+    }
+
+    this.activeNodes.push(source);
+
+    source.onended = () => {
+      this.cleanupNode(source);
+      gain.disconnect();
+    };
+
+    return true;
+  }
+
   async resume(): Promise<void> {
     const ctx = this.getContext();
     if (ctx.state === "suspended") {
@@ -73,37 +149,11 @@ export class AudioEngine {
 
   async playNote(note: string, duration = 0.5): Promise<void> {
     const ctx = this.getContext();
-    const freq = noteToFrequency(note);
-
-    const osc = ctx.createOscillator();
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(freq, ctx.currentTime);
-
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(1, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(
-      0,
-      ctx.currentTime + duration - FADE_OUT_DURATION,
-    );
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + duration);
-
-    this.activeNodes.push(osc);
-
-    osc.onended = () => {
-      const idx = this.activeNodes.indexOf(osc);
-      if (idx !== -1) this.activeNodes.splice(idx, 1);
-      osc.disconnect();
-      gain.disconnect();
-    };
+    this.scheduleOscillator(note, ctx.currentTime, duration);
   }
 
   async playSequence(
-    notes: Array<{ note: string; durationMs: number }>,
+    notes: ReferenceSequenceNote[],
     tempo = 1.0,
   ): Promise<void> {
     const ctx = this.getContext();
@@ -111,35 +161,66 @@ export class AudioEngine {
 
     for (const { note, durationMs } of notes) {
       const durationSec = (durationMs / 1000) * (1 / tempo);
-      const freq = noteToFrequency(note);
-
-      const osc = ctx.createOscillator();
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(freq, offset);
-
-      const gain = ctx.createGain();
-      gain.gain.setValueAtTime(1, offset);
-      gain.gain.linearRampToValueAtTime(
-        0,
-        offset + durationSec - FADE_OUT_DURATION,
-      );
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(offset);
-      osc.stop(offset + durationSec);
-
-      this.activeNodes.push(osc);
-
-      osc.onended = () => {
-        const idx = this.activeNodes.indexOf(osc);
-        if (idx !== -1) this.activeNodes.splice(idx, 1);
-        osc.disconnect();
-        gain.disconnect();
-      };
-
+      this.scheduleOscillator(note, offset, durationSec);
       offset += durationSec;
+    }
+  }
+
+  async preloadNotes(notes: string[]): Promise<void> {
+    const uniqueNotes = [...new Set(notes)];
+    await Promise.all(uniqueNotes.map((note) => this.loadSample(note)));
+  }
+
+  async playReferenceNote(note: string, duration = 0.5): Promise<void> {
+    const ctx = this.getContext();
+    if (!this.sampleCache.has(note)) {
+      await this.loadSample(note);
+    }
+
+    if (!this.scheduleSample(note, ctx.currentTime, duration)) {
+      this.scheduleOscillator(note, ctx.currentTime, duration);
+    }
+  }
+
+  async playReferenceSequence(
+    notes: ReferenceSequenceNote[],
+    tempo = 1.0,
+  ): Promise<void> {
+    await this.preloadNotes(notes.map((item) => item.note));
+
+    const ctx = this.getContext();
+    let offset = ctx.currentTime;
+
+    for (const { note, durationMs } of notes) {
+      const durationSec = (durationMs / 1000) * (1 / tempo);
+      if (!this.scheduleSample(note, offset, durationSec)) {
+        this.scheduleOscillator(note, offset, durationSec);
+      }
+      offset += durationSec;
+    }
+  }
+
+  async playAsset(url: string, playbackRate = 1): Promise<HTMLAudioElement | null> {
+    if (typeof Audio === "undefined") return null;
+
+    const audio = new Audio(url);
+    audio.playbackRate = playbackRate;
+    this.activeAssets.push(audio);
+
+    const cleanup = () => {
+      const idx = this.activeAssets.indexOf(audio);
+      if (idx !== -1) this.activeAssets.splice(idx, 1);
+    };
+
+    audio.onended = cleanup;
+    audio.onerror = cleanup;
+
+    try {
+      await audio.play();
+      return audio;
+    } catch {
+      cleanup();
+      return null;
     }
   }
 
@@ -153,9 +234,17 @@ export class AudioEngine {
       }
     }
     this.activeNodes = [];
+
+    for (const asset of this.activeAssets) {
+      asset.pause();
+      asset.currentTime = 0;
+    }
+    this.activeAssets = [];
   }
 
   async loadSample(note: string): Promise<boolean> {
+    if (this.sampleCache.has(note)) return true;
+
     try {
       const ctx = this.getContext();
       const safeName = note.replace("#", "s");
@@ -171,34 +260,15 @@ export class AudioEngine {
   }
 
   async playNoteSample(note: string, duration?: number): Promise<void> {
-    const buffer = this.sampleCache.get(note);
-    if (!buffer) {
-      return this.playNote(note, duration);
-    }
-
     const ctx = this.getContext();
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
 
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(1, ctx.currentTime);
-
-    source.connect(gain);
-    gain.connect(ctx.destination);
-    source.start(ctx.currentTime);
-
-    if (duration !== undefined) {
-      source.stop(ctx.currentTime + duration);
+    if (!this.sampleCache.has(note)) {
+      await this.loadSample(note);
     }
 
-    this.activeNodes.push(source);
-
-    source.onended = () => {
-      const idx = this.activeNodes.indexOf(source);
-      if (idx !== -1) this.activeNodes.splice(idx, 1);
-      source.disconnect();
-      gain.disconnect();
-    };
+    if (!this.scheduleSample(note, ctx.currentTime, duration)) {
+      this.scheduleOscillator(note, ctx.currentTime, duration ?? 0.5);
+    }
   }
 }
 

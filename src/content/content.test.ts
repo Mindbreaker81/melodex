@@ -88,6 +88,34 @@ describe("Content validation", () => {
     }
   });
 
+  it("intro steps include an illustration and descriptive alt text", () => {
+    for (const lesson of allLessons) {
+      for (const step of lesson.steps) {
+        if (step.type === "intro") {
+          expect(step.image, `${step.id} missing image`).toBeDefined();
+          expect(step.imageAlt, `${step.id} missing imageAlt`).toBeDefined();
+          expect(step.image!.trim().length, `${step.id} empty image`).toBeGreaterThan(0);
+          expect(step.imageAlt!.trim().length, `${step.id} empty imageAlt`).toBeGreaterThan(0);
+        }
+      }
+    }
+  });
+
+  it("demo steps provide either demoAudio or targetNotes", () => {
+    for (const lesson of allLessons) {
+      for (const step of lesson.steps) {
+        if (step.type === "demo") {
+          const hasDemoAudio = step.demoAudio !== undefined && step.demoAudio.trim().length > 0;
+          const hasTargetNotes = step.targetNotes !== undefined && step.targetNotes.length > 0;
+          expect(
+            hasDemoAudio || hasTargetNotes,
+            `${step.id} should define demoAudio or targetNotes`,
+          ).toBe(true);
+        }
+      }
+    }
+  });
+
   it("songs reference existing required lessons", () => {
     const lessonIds = new Set(allLessons.map((lesson) => lesson.id));
     for (const song of allSongs) {
@@ -95,6 +123,21 @@ describe("Content validation", () => {
         lessonIds.has(song.requiredLessonId),
         `${song.id} references missing required lesson ${song.requiredLessonId}`,
       ).toBe(true);
+    }
+  });
+
+  it("song fragments stay within the guided practice size", () => {
+    for (const song of allSongs) {
+      for (const fragment of song.fragments) {
+        expect(
+          fragment.notes.length,
+          `${fragment.id} should have between 4 and 8 notes`,
+        ).toBeGreaterThanOrEqual(4);
+        expect(
+          fragment.notes.length,
+          `${fragment.id} should have between 4 and 8 notes`,
+        ).toBeLessThanOrEqual(8);
+      }
     }
   });
 
