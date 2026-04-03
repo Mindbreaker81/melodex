@@ -6,7 +6,7 @@ Web app educativa para aprender **órgano eléctrico** desde cero. Está pensada
 
 | Documento | Descripción |
 |-----------|-------------|
-| [PRD v1](docs/prd.md) | Requisitos de producto: usuarios, MVP, contenido, arquitectura y modelo de datos |
+| [PRD v2](docs/prd.md) | Requisitos de producto: usuarios, MVP, contenido, arquitectura y modelo de datos |
 
 ## Visión del producto
 
@@ -21,9 +21,10 @@ Web app educativa para aprender **órgano eléctrico** desde cero. Está pensada
 | Framework | Next.js (App Router) |
 | UI | React + Tailwind CSS |
 | Lenguaje | TypeScript |
-| Audio | Tone.js |
+| Audio | Web Audio API + samples mp3 |
 | Estado local | Zustand |
-| Datos y auth | Supabase (Postgres + Auth con magic link) |
+| Persistencia (MVP) | localStorage + Zustand persist |
+| Persistencia (futuro) | Supabase (Postgres + Auth con magic link) |
 | Despliegue | Vercel o Netlify |
 
 ## Alcance del MVP (resumen)
@@ -32,9 +33,9 @@ Web app educativa para aprender **órgano eléctrico** desde cero. Está pensada
 - 7 lecciones progresivas (mano derecha) y 2 canciones guiadas con práctica por fragmentos.
 - Progreso con estrellas y barra global; vista resumida para el padre.
 - Notación en español (Do, Re, Mi…); diseño responsive.
-- Persistencia del progreso en Supabase.
+- Persistencia del progreso en localStorage (Supabase post-validación).
 
-Detalle de mundos, lecciones, canciones y flujos: ver [PRD v1](docs/prd.md).
+Detalle de mundos, lecciones, canciones y flujos: ver [PRD v2](docs/prd.md).
 
 ## Estado del repositorio
 

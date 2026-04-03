@@ -1,4 +1,4 @@
-# PRD — Melodex (v1)
+# PRD — Melodex (v2)
 
 > App educativa para aprender órgano eléctrico desde cero.  
 > Diseñada para un niño de 9 años, principiante absoluto, que practica en casa con su padre.
@@ -51,6 +51,7 @@ Una web-app que funciona como **método guiado paso a paso**: muestra qué tocar
 4. **Instrucciones visuales, no textuales.** Mínimo texto. Máximo color, animación y señalización.
 5. **Progresión visible.** El niño debe ver que avanza.
 6. **Contenido expandible.** Añadir lecciones y canciones debe ser trivial (JSON/TS).
+7. **Mobile portrait: 1 octava + scroll.** En pantallas < 640px en orientación vertical, el teclado virtual muestra 1 octava con scroll horizontal y un banner sugiriendo rotar a landscape. En landscape o pantallas >= 640px se muestran las 2 octavas completas.
 
 ---
 
@@ -266,31 +267,76 @@ export interface World {
 | Framework | Next.js (App Router) | SSR para carga inicial, client components para interacción |
 | UI | React + Tailwind CSS | Rápido de desarrollar, responsive nativo |
 | Lenguaje | TypeScript | Tipado del contenido educativo y lógica |
-| Audio | Tone.js | Reproducción de notas de referencia, secuencias, demos |
+| Audio | Web Audio API nativa + samples mp3 | Reproducción de notas de referencia, secuencias, demos. Ligera y sin dependencias externas. Si se necesita secuenciación avanzada, se puede integrar Tone.js después |
 | Estado de sesión | Zustand | Estado efímero del ejercicio activo |
-| Base de datos | Supabase (Postgres) | Progreso, perfiles, intentos |
-| Auth | Supabase Auth (magic link) | Mínima fricción, una cuenta de padre |
+| Persistencia (MVP) | localStorage + Zustand persist | Progreso, perfiles, intentos. Cero dependencias de red. Validar producto antes de añadir backend |
+| Persistencia (post-validación) | Supabase (Postgres + Auth magic link) | Migrar cuando el MVP esté validado con el niño. La capa de persistencia está desacoplada, la migración es trivial |
 | Deploy | Vercel o Netlify | Despliegue simple desde repo |
 
 ### Lo que NO necesita el MVP
 
 - Backend propio / API custom.
 - CMS de contenidos.
-- Analítica avanzada (derivar métricas de la tabla de intentos es suficiente).
+- Supabase ni base de datos remota (localStorage es suficiente para un usuario).
+- Analítica avanzada (derivar métricas de los intentos almacenados localmente es suficiente).
 - Sistema de roles complejo.
 - Internacionalización (todo en español).
 
-### Modelo de datos (Supabase)
+### Modelo de datos (localStorage — MVP)
+
+En el MVP la persistencia es local. El estado se almacena en `localStorage` vía Zustand persist con la siguiente estructura:
+
+```typescript
+// types/storage.ts
+interface StudentProfile {
+  id: string;
+  displayName: string;
+  avatar: string;
+  currentLessonId: string;
+  createdAt: string; // ISO 8601
+}
+
+interface LessonAttempt {
+  id: string;
+  studentId: string;
+  lessonId: string;
+  stars: number;       // 0-3
+  quizErrors: number;
+  completed: boolean;
+  durationSeconds: number | null;
+  createdAt: string;
+}
+
+interface SongAttempt {
+  id: string;
+  studentId: string;
+  songId: string;
+  fragmentId: string | null; // null si es canción completa
+  completed: boolean;
+  tempoPercent: number;
+  createdAt: string;
+}
+
+interface AppState {
+  student: StudentProfile | null;
+  lessonAttempts: LessonAttempt[];
+  songAttempts: SongAttempt[];
+}
+```
+
+La vista del padre se construye filtrando `lessonAttempts` y `songAttempts`. No necesita estructura separada de "progreso resumido" — es una vista derivada.
+
+### Modelo de datos (Supabase — post-validación)
+
+Cuando se migre a Supabase, el esquema SQL equivalente es:
 
 ```sql
--- Cuenta del padre
 CREATE TABLE profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT UNIQUE NOT NULL,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Perfil del niño
 CREATE TABLE students (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   profile_id UUID REFERENCES profiles(id) NOT NULL,
@@ -300,7 +346,6 @@ CREATE TABLE students (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Intentos de lección (fuente de verdad para todo el progreso)
 CREATE TABLE lesson_attempts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   student_id UUID REFERENCES students(id) NOT NULL,
@@ -312,21 +357,18 @@ CREATE TABLE lesson_attempts (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Intentos de canción
 CREATE TABLE song_attempts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   student_id UUID REFERENCES students(id) NOT NULL,
   song_id TEXT NOT NULL,
-  fragment_id TEXT,              -- NULL si es canción completa
+  fragment_id TEXT,
   completed BOOLEAN NOT NULL DEFAULT false,
   tempo_percent INTEGER NOT NULL DEFAULT 100,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 ```
 
-4 tablas. RLS activado: cada `profile_id` solo lee/escribe sus propios datos.
-
-La vista del padre se construye con queries sobre `lesson_attempts` y `song_attempts`. No necesita tabla separada de "progreso resumido" — es una vista derivada.
+4 tablas. RLS activado: cada `profile_id` solo lee/escribe sus propios datos. La migración desde localStorage consiste en volcar `AppState` a estas tablas con un script de una sola ejecución.
 
 ### Separación de responsabilidades
 
@@ -425,12 +467,78 @@ Si el órgano tiene MIDI/USB, esto transforma la app de "slideshow interactivo" 
 
 ---
 
-## 15. Orden de implementación
+## 15. Estrategia de testing
+
+### Tests unitarios (obligatorios desde el inicio)
+
+- **`lesson-engine`**: es lógica pura sin side effects, ideal para testing. Cubrir: avance de pasos, cálculo de estrellas, evaluación de respuestas quiz, desbloqueo de lecciones.
+- **Validación de contenido**: un test que recorre todos los archivos de lecciones y canciones y verifica que las notas están dentro del rango del teclado (Do3–Do5), que cada lección tiene al menos un step, que los `fingers` son 1-5, y que las referencias entre `World → Lesson → Song` son consistentes.
+- **Store de Zustand**: verificar que el estado se persiste y rehidrata correctamente desde localStorage.
+
+### Tests de componentes (recomendados)
+
+- Teclado virtual: renderiza correctamente N teclas, ilumina la nota indicada, muestra el número de dedo.
+- Flujo de lección: avanza entre pasos, muestra instrucción correcta, registra respuestas.
+
+### Herramientas sugeridas
+
+| Herramienta | Uso |
+|-------------|-----|
+| Vitest | Tests unitarios (compatible con el ecosistema Vite/Next.js) |
+| React Testing Library | Tests de componentes |
+| TypeScript strict mode | Validación estática de tipos en contenido y lógica |
+
+### CI mínimo
+
+Lint + typecheck + tests en cada push a `main`. Bloquear merge si falla.
+
+---
+
+## 16. Accesibilidad básica
+
+Aunque el público principal es un niño de 9 años sin discapacidades reportadas, la app debe cumplir un mínimo de accesibilidad que además mejora la UX general:
+
+- **Contraste de colores de dedos**: los 5 colores asignados a los dedos deben cumplir ratio de contraste WCAG AA (4.5:1) contra el fondo de las teclas.
+- **Navegación por teclado físico**: todos los botones y controles interactivos deben ser alcanzables con Tab y activables con Enter/Space. No confundir con el teclado musical virtual.
+- **`aria-labels` en el teclado virtual**: cada tecla debe tener un label descriptivo (ej: "Do central, dedo 1 pulgar").
+- **Textos alternativos**: las ilustraciones de las pantallas de intro deben tener `alt` descriptivo.
+- **Tamaños de toque**: botones y teclas virtuales mínimo 44x44px (recomendación WCAG para touch).
+
+---
+
+## 17. Estrategia de audio
+
+### Samples locales
+
+Los archivos de audio de referencia (notas individuales y demos de canciones) se sirven desde `/public/audio/` dentro del repositorio. No dependen de CDN externo ni de conexión a internet.
+
+Estructura sugerida:
+
+```
+public/audio/
+  notes/          ← una muestra por nota (ej: C4.mp3, D4.mp3...)
+  songs/          ← demos pregrabados de canciones completas
+```
+
+### Web Audio API
+
+- Para notas individuales de referencia: cargar el sample `.mp3` correspondiente y reproducirlo con `AudioContext`.
+- Para secuencias (demos de canciones): encadenar reproducciones con scheduling preciso de `AudioContext.currentTime`.
+- Fallback: si el navegador no soporta Web Audio API (poco probable en 2026), mostrar mensaje indicando usar Chrome/Edge.
+
+### Beneficio offline
+
+Al no depender de Supabase ni de CDN de audio, la app funciona 100% sin conexión después de la primera carga. Esto es especialmente útil para sesiones de práctica en zonas con mala conectividad.
+
+---
+
+## 18. Orden de implementación
 
 | Fase | Qué | Entregable | Estimación |
 |------|-----|-----------|-----------|
-| 1 | Scaffold + Auth + Onboarding | App con login, perfil de niño, pantalla de inicio | 1-2 sesiones |
-| 2 | Teclado virtual + Audio | Teclado de referencia con sonido de notas (Tone.js) | 1-2 sesiones |
+| 0 | Setup del proyecto | Scaffold Next.js (App Router), TypeScript strict, Tailwind, ESLint, Vitest, estructura de carpetas (`/content`, `/engine`, `/components`, `/app`), CI básico (lint + typecheck + test en push) | 1 sesión |
+| 1 | Onboarding + Pantalla de inicio | Nombre del niño + avatar, pantalla de inicio, persistencia en localStorage con Zustand | 1-2 sesiones |
+| 2 | Teclado virtual + Audio | Teclado de referencia con sonido de notas (Web Audio API + samples) | 1-2 sesiones |
 | 3 | Motor de lección + Lecciones 1-3 | Mundo 1 jugable completo | 2-3 sesiones |
 | 4 | Lecciones 4-7 + sistema de estrellas | Mundos 2-3 jugables, progreso persistido | 2-3 sesiones |
 | 5 | Canciones + reproductor | 2 canciones con fragmentos y tempo variable | 2-3 sesiones |
@@ -440,7 +548,7 @@ Si el órgano tiene MIDI/USB, esto transforma la app de "slideshow interactivo" 
 
 ---
 
-## 16. Criterio de éxito
+## 19. Criterio de éxito
 
 El MVP se considera exitoso si:
 
@@ -452,7 +560,7 @@ El MVP se considera exitoso si:
 
 ---
 
-## 17. Riesgos
+## 20. Riesgos
 
 | Riesgo | Probabilidad | Impacto | Mitigación |
 |--------|-------------|---------|------------|
