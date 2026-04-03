@@ -1,4 +1,4 @@
-# PRD — Melodex (v2)
+# PRD — Melodex (v3)
 
 > App educativa para aprender órgano eléctrico desde cero.  
 > Diseñada para un niño de 9 años, principiante absoluto, que practica en casa con su padre.
@@ -68,7 +68,7 @@ Una web-app que funciona como **método guiado paso a paso**: muestra qué tocar
 - Vista de padre: lecciones completadas, estrellas, áreas débiles, tiempo de práctica.
 - Notación en español: Do, Re, Mi, Fa, Sol, La, Si.
 - Responsive: tablet, portátil, móvil.
-- Persistencia de progreso en Supabase.
+- Persistencia de progreso en Postgres (implementado con Drizzle ORM).
 
 ### Fuera del MVP (pero arquitectura preparada)
 
@@ -267,27 +267,26 @@ export interface World {
 | Framework | Next.js (App Router) | SSR para carga inicial, client components para interacción |
 | UI | React + Tailwind CSS | Rápido de desarrollar, responsive nativo |
 | Lenguaje | TypeScript | Tipado del contenido educativo y lógica |
-| Audio | Web Audio API nativa + samples mp3 | Reproducción de notas de referencia, secuencias, demos. Ligera y sin dependencias externas. Si se necesita secuenciación avanzada, se puede integrar Tone.js después |
-| Estado de sesión | Zustand | Estado efímero del ejercicio activo |
-| Persistencia (MVP) | localStorage + Zustand persist | Progreso, perfiles, intentos. Cero dependencias de red. Validar producto antes de añadir backend |
-| Persistencia (post-validación) | Supabase (Postgres + Auth magic link) | Migrar cuando el MVP esté validado con el niño. La capa de persistencia está desacoplada, la migración es trivial |
-| Deploy | Vercel o Netlify | Despliegue simple desde repo |
+| Audio | Web Audio API nativa + samples WAV | Reproducción de notas de referencia, secuencias, demos. Ligera y sin dependencias externas |
+| Estado de sesión | Zustand 5 | Cache de UI del ejercicio activo. Se hidrata desde el servidor |
+| Persistencia | Postgres directo (Drizzle ORM + postgres.js) | Fuente de verdad para progreso, perfiles e intentos |
+| Auth | PIN familiar (bcrypt + cookie httpOnly) | Acceso simple sin email. Middleware protege rutas |
+| Deploy | Vercel o Netlify | Despliegue simple desde repo. Requiere variable `POSTGRES_URL` |
 
 ### Lo que NO necesita el MVP
 
-- Backend propio / API custom.
+- Backend propio / API custom (los server actions de Next.js son suficientes).
 - CMS de contenidos.
-- Supabase ni base de datos remota (localStorage es suficiente para un usuario).
-- Analítica avanzada (derivar métricas de los intentos almacenados localmente es suficiente).
+- Proveedor de auth externo (el PIN familiar basta para uso doméstico).
+- Analítica avanzada (derivar métricas de los intentos almacenados es suficiente).
 - Sistema de roles complejo.
 - Internacionalización (todo en español).
 
-### Modelo de datos (localStorage — MVP)
+### Modelo de datos (tipos TypeScript)
 
-En el MVP la persistencia es local. El estado se almacena en `localStorage` vía Zustand persist con la siguiente estructura:
+Los tipos del cliente se mantienen en `src/types/storage.ts`:
 
 ```typescript
-// types/storage.ts
 interface StudentProfile {
   id: string;
   displayName: string;
@@ -314,6 +313,7 @@ interface SongAttempt {
   fragmentId: string | null; // null si es canción completa
   completed: boolean;
   tempoPercent: number;
+  durationSeconds: number | null;
   createdAt: string;
 }
 
@@ -326,49 +326,33 @@ interface AppState {
 
 La vista del padre se construye filtrando `lessonAttempts` y `songAttempts`. No necesita estructura separada de "progreso resumido" — es una vista derivada.
 
-### Modelo de datos (Supabase — post-validación)
+### Modelo de datos (Postgres — implementado)
 
-Cuando se migre a Supabase, el esquema SQL equivalente es:
+El esquema se define con Drizzle ORM en `src/db/schema.ts` y se aplica a la BD con `drizzle-kit push`.
 
-```sql
-CREATE TABLE profiles (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email TEXT UNIQUE NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
+4 tablas:
 
-CREATE TABLE students (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  profile_id UUID REFERENCES profiles(id) NOT NULL,
-  display_name TEXT NOT NULL,
-  avatar TEXT NOT NULL,
-  current_lesson_id TEXT NOT NULL DEFAULT 'lesson-1',
-  created_at TIMESTAMPTZ DEFAULT now()
-);
+| Tabla | Propósito |
+|-------|-----------|
+| `families` | Cuentas familiares (id + pin_hash) |
+| `students` | Perfiles de estudiantes (vinculados a una familia) |
+| `lesson_attempts` | Intentos de lecciones con estrellas, errores y duración |
+| `song_attempts` | Intentos de canciones con fragmento, tempo y duración |
 
-CREATE TABLE lesson_attempts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  student_id UUID REFERENCES students(id) NOT NULL,
-  lesson_id TEXT NOT NULL,
-  stars INTEGER NOT NULL CHECK (stars BETWEEN 0 AND 3),
-  quiz_errors INTEGER NOT NULL DEFAULT 0,
-  completed BOOLEAN NOT NULL DEFAULT false,
-  duration_seconds INTEGER,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
+Relaciones con `ON DELETE CASCADE`. Índices en `student_id` y `family_id`.
 
-CREATE TABLE song_attempts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  student_id UUID REFERENCES students(id) NOT NULL,
-  song_id TEXT NOT NULL,
-  fragment_id TEXT,
-  completed BOOLEAN NOT NULL DEFAULT false,
-  tempo_percent INTEGER NOT NULL DEFAULT 100,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-```
+### Auth
 
-4 tablas. RLS activado: cada `profile_id` solo lee/escribe sus propios datos. La migración desde localStorage consiste en volcar `AppState` a estas tablas con un script de una sola ejecución.
+PIN familiar de 4-6 dígitos. Hash con bcrypt, almacenado en tabla `families`. Sesión via cookie httpOnly (`melodex-family`, 1 año). Middleware de Next.js redirige a `/login` si no hay sesión.
+
+### Flujo de persistencia
+
+1. Layout (server component) obtiene `familyId` de la cookie.
+2. Server action `getStudentWithProgress` carga student + attempts desde Postgres.
+3. `AppHydrator` (client component) inyecta los datos en el store Zustand.
+4. Mutaciones (addLessonAttempt, addSongAttempt, etc.) llaman server actions que insertan en BD y actualizan el estado local.
+
+Zustand funciona como cache de UI. La BD es la fuente de verdad.
 
 ### Separación de responsabilidades
 
@@ -379,7 +363,7 @@ motor de lección (lesson-engine.ts)  ←  decide qué paso mostrar,
        ↓                                evalúa respuestas, calcula estrellas
 componentes UI (React)               ←  renderiza, recoge input
        ↓
-persistencia (Supabase)              ←  guarda intentos y progreso
+server actions + Drizzle ORM         ←  persiste intentos y progreso en Postgres
 ```
 
 La UI no decide lógica educativa. El motor de lección es una función pura que recibe estado y devuelve el siguiente paso.
@@ -473,7 +457,7 @@ Si el órgano tiene MIDI/USB, esto transforma la app de "slideshow interactivo" 
 
 - **`lesson-engine`**: es lógica pura sin side effects, ideal para testing. Cubrir: avance de pasos, cálculo de estrellas, evaluación de respuestas quiz, desbloqueo de lecciones.
 - **Validación de contenido**: un test que recorre todos los archivos de lecciones y canciones y verifica que las notas están dentro del rango del teclado (Do3–Do5), que cada lección tiene al menos un step, que los `fingers` son 1-5, y que las referencias entre `World → Lesson → Song` son consistentes.
-- **Store de Zustand**: verificar que el estado se persiste y rehidrata correctamente desde localStorage.
+- **Store de Zustand**: verificar que `hydrate()` carga estado correctamente, que las mutaciones async llaman los server actions mockeados y actualizan el estado local.
 
 ### Tests de componentes (recomendados)
 
@@ -526,23 +510,24 @@ public/audio/
 - Para secuencias (demos de canciones): encadenar reproducciones con scheduling preciso de `AudioContext.currentTime`.
 - Fallback: si el navegador no soporta Web Audio API (poco probable en 2026), mostrar mensaje indicando usar Chrome/Edge.
 
-### Beneficio offline
+### Nota sobre conectividad
 
-Al no depender de Supabase ni de CDN de audio, la app funciona 100% sin conexión después de la primera carga. Esto es especialmente útil para sesiones de práctica en zonas con mala conectividad.
+La app requiere conexión a internet para la persistencia en Postgres (login, guardar progreso). Los assets de audio se sirven como estáticos y se cachean en el navegador. Si se necesita modo offline completo en el futuro, se puede implementar un Service Worker con fallback a localStorage.
 
 ---
 
 ## 18. Orden de implementación
 
-| Fase | Qué | Entregable | Estimación |
-|------|-----|-----------|-----------|
-| 0 | Setup del proyecto | Scaffold Next.js (App Router), TypeScript strict, Tailwind, ESLint, Vitest, estructura de carpetas (`/content`, `/engine`, `/components`, `/app`), CI básico (lint + typecheck + test en push) | 1 sesión |
-| 1 | Onboarding + Pantalla de inicio | Nombre del niño + avatar, pantalla de inicio, persistencia en localStorage con Zustand | 1-2 sesiones |
-| 2 | Teclado virtual + Audio | Teclado de referencia con sonido de notas (Web Audio API + samples) | 1-2 sesiones |
-| 3 | Motor de lección + Lecciones 1-3 | Mundo 1 jugable completo | 2-3 sesiones |
-| 4 | Lecciones 4-7 + sistema de estrellas | Mundos 2-3 jugables, progreso persistido | 2-3 sesiones |
-| 5 | Canciones + reproductor | 2 canciones con fragmentos y tempo variable | 2-3 sesiones |
-| 6 | Panel del padre + pulido | Vista resumen, áreas débiles, recomendaciones | 1-2 sesiones |
+| Fase | Qué | Entregable | Estado |
+|------|-----|-----------|--------|
+| 0 | Setup del proyecto | Scaffold Next.js, TypeScript strict, Tailwind, ESLint, Vitest, CI | Completada |
+| 1 | Onboarding + Pantalla de inicio | Nombre del niño + avatar, pantalla de inicio, store Zustand | Completada |
+| 2 | Teclado virtual + Audio | Teclado de referencia con sonido de notas (Web Audio API + samples WAV) | Completada |
+| 3 | Motor de lección + Lecciones 1-3 | Mundo 1 jugable completo | Completada |
+| 4 | Lecciones 4-7 + sistema de estrellas | Mundos 2-3 jugables, progreso persistido | Completada |
+| 5 | Canciones + reproductor | 2 canciones con fragmentos y tempo variable | Completada |
+| 6 | Panel del padre + pulido | Vista resumen, áreas débiles, recomendaciones | Completada |
+| 7 | Migración a Postgres | Drizzle ORM, server actions, auth PIN, importador localStorage | Completada |
 
 **Test de validación:** si tu hijo completa el Mundo 1 (3 lecciones) sin que le obligues a seguir, el producto funciona.
 
@@ -565,6 +550,7 @@ El MVP se considera exitoso si:
 | Riesgo | Probabilidad | Impacto | Mitigación |
 |--------|-------------|---------|------------|
 | Sin MIDI, la validación es débil | Alta | Medio | Diseño mixto: quiz en pantalla + práctica en órgano. Investigar MIDI del órgano ASAP |
-| El niño se aburre antes de llegar a canciones | Media | Alto | Lecciones muy cortas (3-5 min). Estrellita disponible desde la lección 7 (no la 15) |
+| El niño se aburre antes de llegar a canciones | Media | Alto | Lecciones muy cortas (3-5 min). Canciones disponibles desde lesson-6 |
 | Scope creep: añadir features antes de validar | Alta | Alto | Disciplina: no añadir nada hasta que Mundo 1 esté probado con el niño |
-| El teclado virtual no se ve bien en móvil | Media | Medio | Diseñar mobile-first. 2 octavas son manejables en landscape |
+| El teclado virtual no se ve bien en móvil | Media | Medio | Resuelto: viewport de 1 octava en portrait con scroll horizontal |
+| BD inaccesible o lenta | Baja | Alto | Optimistic updates en el store. Considerar fallback a localStorage si se necesita offline |
