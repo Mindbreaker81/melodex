@@ -26,13 +26,13 @@ describe("Keyboard", () => {
 
   it("highlights active note with finger color as background", () => {
     render(<Keyboard activeNote="C4" activeFinger={1} />);
-    const key = screen.getByLabelText("C4 (Do)");
+    const key = screen.getByLabelText("C4 (Do) - dedo 1, pulgar");
     expect(key).toHaveStyle({ backgroundColor: FINGER_COLORS[1] });
   });
 
   it("displays finger number on active note", () => {
     render(<Keyboard activeNote="C4" activeFinger={2} />);
-    const key = screen.getByLabelText("C4 (Do)");
+    const key = screen.getByLabelText("C4 (Do) - dedo 2, índice");
     expect(key).toHaveTextContent("2");
   });
 

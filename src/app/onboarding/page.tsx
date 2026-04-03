@@ -23,7 +23,7 @@ export default function OnboardingPage() {
       createdAt: new Date().toISOString(),
     });
 
-    router.push("/");
+    router.push("/lesson/lesson-1");
   }
 
   return (

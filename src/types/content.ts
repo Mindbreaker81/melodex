@@ -60,11 +60,11 @@ export const VALID_NOTES = [
 ] as const;
 
 export const FINGER_COLORS: Record<FingerNumber, string> = {
-  1: "#E53935",
-  2: "#1E88E5",
-  3: "#43A047",
-  4: "#FB8C00",
-  5: "#8E24AA",
+  1: "#C62828",
+  2: "#1565C0",
+  3: "#2E7D32",
+  4: "#E65100",
+  5: "#6A1B9A",
 };
 
 export const FINGER_NAMES: Record<FingerNumber, string> = {

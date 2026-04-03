@@ -252,28 +252,28 @@ export default function SongPlayerPage() {
         }`}
       >
         <div className="mx-auto w-full max-w-2xl">
+          <div className="mb-4 flex flex-wrap justify-center gap-2">
+            {TEMPOS.map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => setTempoPercent(t.value)}
+                className={`min-h-[44px] rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
+                  tempoPercent === t.value
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
           {mode === "listen" && (
             <div className="flex flex-col items-center gap-4">
               <p className="text-center text-lg text-gray-600">
                 Escucha la canción completa y observa las notas en el teclado
               </p>
-
-              <div className="flex flex-wrap justify-center gap-2">
-                {TEMPOS.map((t) => (
-                  <button
-                    key={t.value}
-                    type="button"
-                    onClick={() => setTempoPercent(t.value)}
-                    className={`min-h-[44px] rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
-                      tempoPercent === t.value
-                        ? "bg-blue-500 text-white"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
 
               {isPlaying ? (
                 <button

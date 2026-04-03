@@ -33,6 +33,15 @@ export function processAction(
   action: UserAction,
   lesson: Lesson,
 ): LessonState {
+  if (action.type === "retry") {
+    return {
+      ...state,
+      currentStepIndex: 0,
+      completedStepIds: [...state.completedStepIds],
+      isComplete: false,
+    };
+  }
+
   if (state.isComplete) return state;
 
   const currentStep = lesson.steps[state.currentStepIndex];
@@ -69,15 +78,6 @@ export function processAction(
         return advanceStep(state, currentStep);
       }
       return { ...state, quizErrors: state.quizErrors + 1 };
-    }
-
-    case "retry": {
-      return {
-        ...state,
-        currentStepIndex: 0,
-        completedStepIds: [...state.completedStepIds],
-        isComplete: false,
-      };
     }
 
     default:

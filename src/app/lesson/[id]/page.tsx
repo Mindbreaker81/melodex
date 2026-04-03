@@ -45,11 +45,13 @@ function CompletionScreen({
   nextLesson,
   onNext,
   onMap,
+  onRetry,
 }: {
   stars: number;
   nextLesson: Lesson | null;
   onNext: () => void;
   onMap: () => void;
+  onRetry: () => void;
 }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-8 p-6">
@@ -57,6 +59,15 @@ function CompletionScreen({
         ¡Lección completada!
       </h2>
       <StarsDisplay earned={stars} />
+      <button
+        type="button"
+        onClick={onRetry}
+        className="min-h-[48px] w-full max-w-xs rounded-2xl border-2 border-purple-400 bg-white px-6 py-3 text-lg font-bold text-purple-600 transition-colors hover:bg-purple-50"
+      >
+        {stars < 3
+          ? "🔄 Repetir para ganar 3 estrellas"
+          : "🔄 Repetir lección"}
+      </button>
       <div className="flex w-full max-w-xs flex-col gap-3">
         {nextLesson && (
           <button
@@ -258,6 +269,12 @@ export default function LessonPlayerPage() {
             nextLesson && router.push(`/lesson/${nextLesson.id}`)
           }
           onMap={() => router.push("/lessons")}
+          onRetry={() => {
+            if (!lesson) return;
+            savedForLessonRef.current = null;
+            setState(processAction(state, { type: "retry" }, lesson));
+            setSequenceIndex(0);
+          }}
         />
       </main>
     );

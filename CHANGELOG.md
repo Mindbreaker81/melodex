@@ -7,6 +7,19 @@ y este proyecto adhiere a [Versionado semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-04-03
+
+### Corregido
+
+- **Flujo "Continuar"**: el botón ahora abre directamente la siguiente lección pendiente (antes iba al mapa de lecciones).
+- **Onboarding**: al completar, redirige a la Lección 1 directamente (antes iba a la pantalla de inicio).
+- **3 estrellas alcanzable**: agregado botón "Repetir lección" en la pantalla de finalización para poder obtener 3 estrellas.
+- **Tempo en todos los modos**: controles de tempo visibles en escuchar, fragmento y completa (antes solo en escuchar).
+- **Himno de la Alegría simplificado**: reducido a 3 notas (Mi, Fa, Sol) según el PRD.
+- **Contraste WCAG AA**: colores de dedos actualizados a variantes más oscuras que cumplen ratio 4.5:1 contra texto blanco.
+- **aria-labels enriquecidos**: teclas activas del teclado incluyen nombre y número de dedo (ej: "C4 (Do) - dedo 1, pulgar").
+- **Teclas negras 36px**: aumentado ancho mínimo de 28px a 36px para mejorar touch targets.
+
 ## [0.3.0] - 2026-04-03
 
 ### Añadido

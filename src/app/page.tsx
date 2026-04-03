@@ -58,11 +58,22 @@ export default function HomePage() {
 
         <button
           type="button"
-          onClick={() => router.push("/lessons")}
+          onClick={() =>
+            router.push(
+              `/lesson/${student.currentLessonId ?? "lesson-1"}`,
+            )
+          }
           className="w-full rounded-2xl bg-blue-500 px-8 py-4 text-2xl font-bold text-white transition-colors hover:bg-blue-600"
         >
           Continuar
         </button>
+
+        <Link
+          href="/lessons"
+          className="text-base font-medium text-blue-500 hover:underline"
+        >
+          📋 Ver todas las lecciones
+        </Link>
 
         <button
           type="button"

@@ -1,6 +1,6 @@
 "use client";
 
-import { type FingerNumber, FINGER_COLORS } from "@/types/content";
+import { type FingerNumber, FINGER_COLORS, FINGER_NAMES } from "@/types/content";
 
 interface KeyboardProps {
   activeNote?: string | null;
@@ -24,7 +24,7 @@ const SPANISH_NAMES: Record<string, string> = {
 const WHITE_NOTES = ["C", "D", "E", "F", "G", "A", "B"];
 const NOTES_WITH_SHARP = new Set(["C", "D", "F", "G", "A"]);
 const WHITE_KEY_WIDTH = 44;
-const BLACK_KEY_WIDTH = 28;
+const BLACK_KEY_WIDTH = 36;
 
 interface KeyInfo {
   note: string;
@@ -94,6 +94,14 @@ export default function Keyboard({
 
   const isActive = (note: string) => note === activeNote && activeFinger;
 
+  function ariaLabel(key: KeyInfo): string {
+    const base = `${key.note} (${key.spanishName})`;
+    if (key.note === activeNote && activeFinger) {
+      return `${base} - dedo ${activeFinger}, ${FINGER_NAMES[activeFinger]}`;
+    }
+    return base;
+  }
+
   return (
     <div>
       <p className="mb-2 text-center text-xs text-gray-400 sm:hidden">
@@ -108,7 +116,7 @@ export default function Keyboard({
             <button
               key={key.note}
               type="button"
-              aria-label={`${key.note} (${key.spanishName})`}
+              aria-label={ariaLabel(key)}
               className="relative flex h-48 items-end justify-center border border-gray-300 bg-white pb-2 text-xs text-gray-500"
               style={{
                 width: WHITE_KEY_WIDTH,
@@ -128,8 +136,8 @@ export default function Keyboard({
             <button
               key={key.note}
               type="button"
-              aria-label={`${key.note} (${key.spanishName})`}
-              className="absolute top-0 z-10 flex h-28 items-end justify-center rounded-b border border-gray-800 bg-black pb-1 text-xs"
+              aria-label={ariaLabel(key)}
+              className="absolute top-0 z-10 flex h-36 items-end justify-center rounded-b border border-gray-800 bg-black pb-1 text-xs"
               style={{
                 width: BLACK_KEY_WIDTH,
                 left:
