@@ -7,9 +7,11 @@ Web app educativa para aprender **órgano eléctrico** desde cero. Está pensada
 | Documento | Descripción |
 |-----------|-------------|
 | [PRD v3](docs/prd.md) | Requisitos de producto: usuarios, MVP, contenido, arquitectura y modelo de datos |
+| [Auditoría PRD v3](docs/auditoria-prd-v3.md) | Estado de cumplimiento del repo contra el PRD, actualizado tras la remediación |
+| [Spec de remediación PRD v3](docs/spec-prd-v3-remediacion.md) | Plan técnico ejecutado para cerrar gaps detectados en la auditoría |
 | [Deploy](docs/deploy.md) | Instrucciones para desplegar en Vercel o Netlify (requiere Postgres) |
 | [Migración a Postgres](docs/spec-supabase-migration.md) | Spec técnico de la migración de localStorage a Postgres |
-| [Pendientes post-MVP](docs/pendientes-post-mvp.md) | Items menores no bloqueantes: ilustraciones, PWA offline, mobile portrait |
+| [Pendientes post-MVP](docs/pendientes-post-mvp.md) | Pendientes reales tras la remediación PRD v3: offline determinista, analytics más finos y mantenimiento |
 
 ## Visión del producto
 
@@ -37,13 +39,28 @@ Web app educativa para aprender **órgano eléctrico** desde cero. Está pensada
 - 7 lecciones progresivas (mano derecha) y 2 canciones guiadas con práctica por fragmentos.
 - Progreso con estrellas y barra global; vista resumida para el padre.
 - Notación en español (Do, Re, Mi…); diseño responsive.
+- Intro visuales con ilustraciones, demos de audio unificadas y affordances táctiles para móvil portrait.
 - Persistencia del progreso en Postgres (con importador desde localStorage).
 
-Detalle de mundos, lecciones, canciones y flujos: ver [PRD v2](docs/prd.md).
+Detalle de mundos, lecciones, canciones y flujos: ver [PRD v3](docs/prd.md).
 
 ## Estado del repositorio
 
-Aplicación funcional con 74 tests passing, lint clean, build OK. Lista para deploy.
+Aplicación funcional con:
+
+- flujo de primera ejecución corregido (`login -> onboarding`)
+- panel del padre con sesiones agrupadas
+- ilustraciones y `alt` en pasos `intro`
+- audio unificado vía `audioEngine`
+- teclado móvil con targets táctiles de `44px` y pista visual de scroll
+
+Estado actual: `86` tests passing, lint/typecheck/build OK. Lista para deploy.
+
+## Estado de la documentación
+
+- `docs/deploy.md` y `docs/spec-supabase-migration.md` siguen alineados con el stack actual.
+- No hace falta añadir nuevos documentos por ahora; la cobertura documental actual es suficiente.
+- Los pendientes no bloqueantes restantes se concentran en `docs/pendientes-post-mvp.md`.
 
 ## Desarrollo local
 

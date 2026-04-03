@@ -65,7 +65,7 @@ Una web-app que funciona como **método guiado paso a paso**: muestra qué tocar
 - 2 canciones guiadas con práctica por fragmentos.
 - Sistema de progreso: estrellas por lección (1-3), barra de avance global.
 - Sonido de referencia (para que el niño escuche cómo suena la nota/melodía correcta).
-- Vista de padre: lecciones completadas, estrellas, áreas débiles, tiempo de práctica.
+- Vista de padre: lecciones completadas, estrellas, áreas a reforzar, tiempo de práctica.
 - Notación en español: Do, Re, Mi, Fa, Sol, La, Si.
 - Responsive: tablet, portátil, móvil.
 - Persistencia de progreso en Postgres (implementado con Drizzle ORM).
@@ -79,7 +79,7 @@ Una web-app que funciona como **método guiado paso a paso**: muestra qué tocar
 - Ritmo avanzado / metrónomo independiente.
 - Múltiples perfiles de niño.
 - PWA / modo offline.
-- Autenticación compleja (el MVP puede funcionar con un magic link simple).
+- Autenticación compleja (el MVP funciona con PIN familiar simple; no requiere proveedor externo).
 
 ---
 
@@ -117,7 +117,7 @@ Una web-app que funciona como **método guiado paso a paso**: muestra qué tocar
 
 | Canción | Notas usadas | Por qué |
 |---------|-------------|---------|
-| Estrellita (Twinkle Twinkle) | Do-Sol | Universalmente conocida, repetitiva, rango limitado |
+| Estrellita (Twinkle Twinkle) | Do-La | Universalmente conocida, repetitiva y fácil de fragmentar |
 | Himno de la Alegría (simplificada) | Mi-Sol (fragmento) | Reconocible, solo 3 notas en la versión simplificada |
 
 Cada canción tiene:
@@ -186,7 +186,7 @@ Una sola pantalla que muestra:
 
 - **Progreso global:** "Lección 5 de 7 · 12 de 21 estrellas".
 - **Última sesión:** fecha, duración, qué lecciones/canciones practicó.
-- **Áreas débiles:** notas o lecciones donde más errores hubo (basado en quizzes).
+- **Áreas débiles:** principalmente lecciones donde más errores hubo (basado en quizzes). En una iteración futura se puede bajar a nivel nota/patrón.
 - **Siguiente recomendación:** "Repetir lección 5" o "Probar Estrellita en modo lento".
 
 No es un dashboard complejo. Es una pantalla resumen.
@@ -217,6 +217,8 @@ export interface LessonStep {
   fingers?: FingerNumber[];   // Digitación sugerida
   demoAudio?: string;         // Referencia al sonido de demostración
   image?: string;             // Ilustración opcional
+  imageAlt?: string;          // Texto alternativo descriptivo
+  visualHint?: "group-2-3" | "find-c" | "fingers-1-5" | "scale-up" | "song-fragment";
 }
 
 export interface Lesson {
@@ -242,7 +244,7 @@ export interface Song {
   difficulty: "easy" | "medium";
   requiredLessonId: string;   // Lección mínima para desbloquear
   fragments: SongFragment[];
-  fullDemoAudio: string;
+  fullDemoAudio?: string;     // Demo completa pregrabada; si falta, se sintetiza con samples
 }
 
 export interface World {
@@ -398,14 +400,14 @@ La UI no decide lógica educativa. El motor de lección es una función pura que
 ### Panel del padre
 - Accesible desde icono/menú.
 - No requiere navegación compleja.
-- Una pantalla con: progreso, última sesión, áreas débiles, recomendación.
+- Una pantalla con: progreso, última sesión, áreas a reforzar por lección, recomendación.
 
 ---
 
 ## 12. Flujos principales
 
 ### A — Primera vez
-1. Padre abre la app → login con magic link.
+1. Padre abre la app → login con PIN familiar.
 2. Onboarding: nombre del niño + elegir avatar (6-8 opciones predefinidas).
 3. La app abre directamente la Lección 1.
 
@@ -500,14 +502,15 @@ Estructura sugerida:
 
 ```
 public/audio/
-  notes/          ← una muestra por nota (ej: C4.mp3, D4.mp3...)
+  notes/          ← una muestra por nota (ej: C4.wav, D4.wav...)
   songs/          ← demos pregrabados de canciones completas
 ```
 
 ### Web Audio API
 
-- Para notas individuales de referencia: cargar el sample `.mp3` correspondiente y reproducirlo con `AudioContext`.
+- Para notas individuales de referencia: cargar el sample `.wav` correspondiente y reproducirlo con `AudioContext`.
 - Para secuencias (demos de canciones): encadenar reproducciones con scheduling preciso de `AudioContext.currentTime`.
+- Si una canción no tiene `fullDemoAudio`, la app puede reproducir la demo completa encadenando sus fragmentos con samples locales.
 - Fallback: si el navegador no soporta Web Audio API (poco probable en 2026), mostrar mensaje indicando usar Chrome/Edge.
 
 ### Nota sobre conectividad
@@ -526,8 +529,9 @@ La app requiere conexión a internet para la persistencia en Postgres (login, gu
 | 3 | Motor de lección + Lecciones 1-3 | Mundo 1 jugable completo | Completada |
 | 4 | Lecciones 4-7 + sistema de estrellas | Mundos 2-3 jugables, progreso persistido | Completada |
 | 5 | Canciones + reproductor | 2 canciones con fragmentos y tempo variable | Completada |
-| 6 | Panel del padre + pulido | Vista resumen, áreas débiles, recomendaciones | Completada |
+| 6 | Panel del padre + pulido | Vista resumen, áreas a reforzar, recomendaciones | Completada |
 | 7 | Migración a Postgres | Drizzle ORM, server actions, auth PIN, importador localStorage | Completada |
+| 8 | Remediación PRD v3 | Hydratación first-run, sesiones agrupadas, ilustraciones intro, audio unificado, accesibilidad touch e índices DB | Completada |
 
 **Test de validación:** si tu hijo completa el Mundo 1 (3 lecciones) sin que le obligues a seguir, el producto funciona.
 

@@ -7,6 +7,32 @@ y este proyecto adhiere a [Versionado semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Añadido
+
+- **Auditoría PRD v3 actualizada**: `docs/auditoria-prd-v3.md` ahora refleja el estado del repo tras la remediación.
+- **Spec histórica de remediación**: `docs/spec-prd-v3-remediacion.md` documenta el plan ejecutado y los abiertos restantes.
+- **Ilustraciones intro**: assets SVG para las 7 lecciones en `public/illustrations/lesson-{1..7}/`.
+- **Sesiones de práctica**: utilidad `session-utils.ts` para agrupar intentos de lecciones y canciones en sesiones reales.
+- **Cobertura de tests ampliada**: nuevos tests para `AppHydrator`, `ParentDashboard`, `session-utils` y audio.
+
+### Cambiado
+
+- **README**: actualizado con el estado real del MVP, nuevos documentos y resultado actual de validación.
+- **PRD v3**: alineado con el auth por PIN, audio WAV, flujo real de onboarding y modelo de contenido visual/audio actual.
+- **Pendientes post-MVP**: reducido a pendientes vigentes tras la remediación PRD v3.
+- **Panel del padre**: “Última sesión” ahora agrupa actividades reales y “Áreas débiles” pasa a presentarse como “Áreas a reforzar”.
+- **Lecciones intro**: renderizan ilustración, `alt` descriptivo y micro-animaciones ligeras.
+- **Audio**: canciones y lecciones usan la misma fachada `audioEngine` (`playReferenceNote`, `playReferenceSequence`, `playAsset`, `preloadNotes`).
+- **Teclado móvil**: teclas negras ajustadas a `44px`, nuevos colores de dedos y pista visual de scroll horizontal en portrait.
+- **Modelo de contenido**: `LessonStep` incluye `imageAlt` y `visualHint`; `Song.fullDemoAudio` pasa a ser opcional con fallback programático.
+
+### Corregido
+
+- **First-run / hidratación**: una familia nueva ya no puede quedarse bloqueada en loading antes del onboarding.
+- **Persistencia Postgres**: se añadieron índices explícitos para `family_id` y `student_id`, incluyendo variantes por `created_at`.
+- **Contenido guiado**: `Himno de la Alegría` vuelve a quedar dentro del rango de fragmentos guiados de `4–8` notas.
+- **Auditoría/PRD**: se eliminaron referencias desalineadas a `magic link`, `.mp3` y estado pre-remediación.
+
 ## [0.4.0] - 2026-04-03
 
 ### Añadido

@@ -1,5 +1,8 @@
 # Spec técnico: Remediación de gaps contra PRD v3
 
+> Estado: **implementada en `main`** el `2026-04-03`.  
+> Este documento se conserva como spec histórica y como checklist de lo que se ejecutó.
+
 ## Objetivo
 
 Cerrar los gaps detectados en `docs/auditoria-prd-v3.md` para dejar el repo
@@ -10,6 +13,24 @@ sin ampliar scope más allá del MVP actual.
 
 - Auditoría: `docs/auditoria-prd-v3.md`
 - PRD fuente: `docs/prd.md`
+
+## Resultado de ejecución
+
+### Fases cerradas
+
+- **Fase 1 — first-run / hidratación:** cerrada.
+- **Fase 2 — panel del padre con sesiones reales:** cerrada.
+- **Fase 3 — pedagogía visual en intros:** cerrada.
+- **Fase 4 — unificación de audio:** cerrada.
+- **Fase 5 — accesibilidad y responsive:** cerrada.
+- **Fase 6 — índices y hardening de BD:** cerrada.
+- **Fase 7 — alineación final de contenido vs PRD:** cerrada mediante actualización combinada de código y documentación.
+
+### Abiertos menores tras la ejecución
+
+1. Analytics más finos para áreas débiles por **nota/patrón**.
+2. Offline determinista con **Service Worker / PWA**.
+3. Migración técnica futura de `middleware.ts` a `proxy.ts`.
 
 ## Alcance
 
