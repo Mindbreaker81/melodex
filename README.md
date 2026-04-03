@@ -7,6 +7,8 @@ Web app educativa para aprender **órgano eléctrico** desde cero. Está pensada
 | Documento | Descripción |
 |-----------|-------------|
 | [PRD v2](docs/prd.md) | Requisitos de producto: usuarios, MVP, contenido, arquitectura y modelo de datos |
+| [Deploy](docs/deploy.md) | Instrucciones para desplegar en Vercel o Netlify |
+| [Pendientes post-MVP](docs/pendientes-post-mvp.md) | Items menores no bloqueantes: ilustraciones, PWA offline, mobile portrait |
 
 ## Visión del producto
 
