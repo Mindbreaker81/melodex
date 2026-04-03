@@ -7,6 +7,40 @@ y este proyecto adhiere a [Versionado semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-04-03
+
+### Añadido
+
+- **Postgres como fuente de verdad**: migración de localStorage a Postgres directo vía Drizzle ORM.
+- **Auth por PIN familiar**: login con PIN de 4-6 dígitos, cookie httpOnly, middleware de protección de rutas.
+- **Página de login** (`/login`): UI para ingresar/crear PIN familiar.
+- **Schema Drizzle**: tablas `families`, `students`, `lesson_attempts`, `song_attempts` con cascade y índices.
+- **Server actions**: `student-repo.ts` y `attempt-repo.ts` encapsulan todas las escrituras a BD.
+- **AppHydrator**: componente que hidrata el store Zustand desde datos del servidor en el layout.
+- **Importador localStorage → Postgres**: detecta progreso local post-login y ofrece importar.
+- **Spec de migración**: `docs/spec-supabase-migration.md` con plan técnico completo.
+- Nuevas dependencias: `drizzle-orm`, `postgres`, `bcryptjs`, `drizzle-kit`.
+
+### Cambiado
+
+- **Store Zustand**: eliminado `persist`, mutaciones ahora async (llaman server actions).
+- **Layout**: server component que obtiene datos de BD y los pasa al hydrator.
+- **Todas las pages**: migradas de `persist.onFinishHydration` a `store.hydrated`.
+- **Onboarding**: `setStudent` ahora async, crea student en BD.
+- **Lesson/Song pages**: `addLessonAttempt`, `addSongAttempt`, `setCurrentLessonId` ahora async.
+- **Deploy**: ahora requiere variable de entorno `POSTGRES_URL`.
+
+### Corregido (auditoria PRD v3)
+
+- **Progresión lineal**: `orderedLessons` derivado de `worlds` para secuencia global real.
+- **find-note**: acepta cualquier nota válida del step (multi-answer).
+- **Canciones**: `requiredLessonId` unificado a `lesson-6` (alineado con PRD).
+- **Estrellas separadas**: `getSongStars` y `getTotalSongStars` independientes de lecciones.
+- **Panel del padre**: sección de canciones y tiempo total de práctica.
+- **Mobile keyboard**: viewport de 1 octava en portrait (352px).
+- **React hooks**: ref mutations y setState-in-effect corregidos.
+- **Selectores Zustand**: estabilizados para evitar loops infinitos.
+
 ## [0.3.1] - 2026-04-03
 
 ### Corregido
