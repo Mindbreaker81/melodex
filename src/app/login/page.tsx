@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { loginWithPin, createFamily } from "@/lib/auth";
+import { migrateLocalData } from "@/lib/migrate-local-data";
+import type { AppState } from "@/types/storage";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -10,6 +12,10 @@ export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [migrationPrompt, setMigrationPrompt] = useState(false);
+  const [familyIdForMigration, setFamilyIdForMigration] = useState<
+    string | null
+  >(null);
 
   const isValid = /^\d{4,6}$/.test(pin);
 
@@ -19,22 +25,90 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      let fid: string | null = null;
       if (mode === "login") {
-        const familyId = await loginWithPin(pin);
-        if (!familyId) {
+        fid = await loginWithPin(pin);
+        if (!fid) {
           setError("PIN incorrecto");
           setLoading(false);
           return;
         }
       } else {
-        await createFamily(pin);
+        fid = await createFamily(pin);
       }
+
+      const raw =
+        typeof window !== "undefined"
+          ? window.localStorage.getItem("melodex-storage")
+          : null;
+      if (raw && fid) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed?.state?.student) {
+            setFamilyIdForMigration(fid);
+            setMigrationPrompt(true);
+            setLoading(false);
+            return;
+          }
+        } catch {
+          // invalid JSON, ignore
+        }
+      }
+
       router.push("/");
       router.refresh();
     } catch {
       setError("Error de conexión. Intenta de nuevo.");
       setLoading(false);
     }
+  }
+
+  async function handleMigration(accept: boolean) {
+    if (accept && familyIdForMigration) {
+      const raw = window.localStorage.getItem("melodex-storage");
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          const localState: AppState = parsed.state;
+          await migrateLocalData(localState, familyIdForMigration);
+        } catch {
+          // migration failed, continue anyway
+        }
+      }
+    }
+    window.localStorage.removeItem("melodex-storage");
+    router.push("/");
+    router.refresh();
+  }
+
+  if (migrationPrompt) {
+    return (
+      <main className="flex flex-1 items-center justify-center p-6">
+        <div className="flex w-full max-w-sm flex-col items-center gap-6">
+          <h1 className="text-3xl font-bold text-purple-600">
+            Progreso local encontrado
+          </h1>
+          <p className="text-center text-gray-600">
+            Encontramos progreso guardado en este navegador. ¿Quieres
+            importarlo a tu cuenta?
+          </p>
+          <button
+            type="button"
+            onClick={() => handleMigration(true)}
+            className="w-full rounded-2xl bg-green-500 px-8 py-4 text-xl font-bold text-white transition-colors hover:bg-green-600"
+          >
+            Importar progreso
+          </button>
+          <button
+            type="button"
+            onClick={() => handleMigration(false)}
+            className="text-sm text-gray-500 underline"
+          >
+            No, empezar de cero
+          </button>
+        </div>
+      </main>
+    );
   }
 
   return (
