@@ -41,7 +41,7 @@ export default function SongPlayerPage() {
   const songId = params.id as string;
   const song = getSongById(songId);
 
-  const [hydrated, setHydrated] = useState(false);
+  const hydrated = useAppStore((s) => s.hydrated);
   const [mode, setMode] = useState<Mode>("listen");
   const [tempoPercent, setTempoPercent] = useState(0.5);
   const [activeFragmentIdx, setActiveFragmentIdx] = useState(0);
@@ -66,12 +66,7 @@ export default function SongPlayerPage() {
   const listenAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    const markHydrated = () => setHydrated(true);
-    const unsub = useAppStore.persist.onFinishHydration(markHydrated);
-    if (useAppStore.persist.hasHydrated()) markHydrated();
-
     return () => {
-      unsub();
       if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
       for (const timer of listenTimersRef.current) clearTimeout(timer);
       listenTimersRef.current = [];
@@ -205,9 +200,9 @@ export default function SongPlayerPage() {
     clearListenTimers();
   }
 
-  function saveSongAttempt(fragmentId: string | null) {
+  async function saveSongAttempt(fragmentId: string | null) {
     if (!student || !song) return;
-    addSongAttempt({
+    await addSongAttempt({
       studentId: student.id,
       songId: song.id,
       fragmentId,

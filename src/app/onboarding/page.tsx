@@ -10,13 +10,15 @@ export default function OnboardingPage() {
   const [name, setName] = useState("");
   const [avatar, setAvatar] = useState("");
 
-  const canSubmit = name.trim().length > 0 && avatar !== "";
+  const [loading, setLoading] = useState(false);
+  const canSubmit = name.trim().length > 0 && avatar !== "" && !loading;
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!canSubmit) return;
+    setLoading(true);
 
-    useAppStore.getState().setStudent({
-      id: crypto.randomUUID(),
+    await useAppStore.getState().setStudent({
+      id: "",
       displayName: name.trim(),
       avatar,
       currentLessonId: "lesson-1",

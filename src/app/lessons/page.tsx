@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAppStore } from "@/store/useAppStore";
@@ -14,14 +14,7 @@ import { isLessonUnlocked } from "@/engine/lesson-engine";
 
 export default function LessonsPage() {
   const router = useRouter();
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    const markHydrated = () => setHydrated(true);
-    const unsub = useAppStore.persist.onFinishHydration(markHydrated);
-    if (useAppStore.persist.hasHydrated()) markHydrated();
-    return unsub;
-  }, []);
+  const hydrated = useAppStore((s) => s.hydrated);
 
   const getCompletedLessonIds = useAppStore((s) => s.getCompletedLessonIds);
   const isCompleted = useAppStore((s) => s.isLessonCompleted);

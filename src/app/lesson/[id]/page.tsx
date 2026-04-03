@@ -147,7 +147,7 @@ export default function LessonPlayerPage() {
     flashTimeoutRef.current = setTimeout(() => setErrorFlash(false), 500);
   }
 
-  function saveIfComplete(newState: LessonState) {
+  async function saveIfComplete(newState: LessonState) {
     if (
       newState.isComplete &&
       savedForLessonRef.current !== newState.lessonId &&
@@ -155,7 +155,7 @@ export default function LessonPlayerPage() {
       lesson
     ) {
       savedForLessonRef.current = newState.lessonId;
-      addLessonAttempt({
+      await addLessonAttempt({
         studentId: student.id,
         lessonId: lesson.id,
         stars: calculateStars(newState),
@@ -170,7 +170,7 @@ export default function LessonPlayerPage() {
         ? completedIds
         : [...completedIds, lesson.id];
       const nextPendingLesson = getNextPendingLesson(projectedCompletedIds);
-      setCurrentLessonId(nextPendingLesson?.id ?? lesson.id);
+      await setCurrentLessonId(nextPendingLesson?.id ?? lesson.id);
     }
   }
 

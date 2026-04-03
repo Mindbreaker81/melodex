@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAppStore } from "@/store/useAppStore";
@@ -10,14 +10,7 @@ import { RotateBanner } from "@/components/RotateBanner";
 
 export default function HomePage() {
   const router = useRouter();
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    const markHydrated = () => setHydrated(true);
-    const unsub = useAppStore.persist.onFinishHydration(markHydrated);
-    if (useAppStore.persist.hasHydrated()) markHydrated();
-    return unsub;
-  }, []);
+  const hydrated = useAppStore((s) => s.hydrated);
 
   const student = useAppStore((s) => s.student);
   const totalLessonStars = useAppStore((s) => s.getTotalStars());

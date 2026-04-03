@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAppStore } from "@/store/useAppStore";
 import { getLessonById } from "@/content";
@@ -11,14 +10,7 @@ import {
 } from "@/content/songs";
 
 export default function SongsPage() {
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    const markHydrated = () => setHydrated(true);
-    const unsub = useAppStore.persist.onFinishHydration(markHydrated);
-    if (useAppStore.persist.hasHydrated()) markHydrated();
-    return unsub;
-  }, []);
+  const hydrated = useAppStore((s) => s.hydrated);
 
   const getCompletedLessonIds = useAppStore((s) => s.getCompletedLessonIds);
   const getSongStars = useAppStore((s) => s.getSongStars);
