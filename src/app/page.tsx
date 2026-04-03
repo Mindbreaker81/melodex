@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAppStore } from "@/store/useAppStore";
+import { RotateBanner } from "@/components/RotateBanner";
 
 export default function HomePage() {
   const router = useRouter();
@@ -41,6 +43,7 @@ export default function HomePage() {
 
   return (
     <main className="flex flex-1 items-center justify-center p-6">
+      <RotateBanner />
       <div className="flex w-full max-w-md flex-col items-center gap-8">
         <div className="flex flex-col items-center gap-2">
           <span className="text-6xl">{student.avatar}</span>
@@ -70,6 +73,10 @@ export default function HomePage() {
         >
           Canciones
         </button>
+
+        <Link href="/parent" className="text-sm text-gray-500 underline">
+          👨‍👩‍👦 Panel del padre
+        </Link>
       </div>
     </main>
   );
