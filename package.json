@@ -13,6 +13,7 @@
     "ci": "pnpm lint && pnpm typecheck && pnpm test"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.2",
     "next": "16.2.2",
     "postgres": "^3.4.8",
@@ -29,6 +30,7 @@
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6",
     "@testing-library/react": "^16",
+    "@types/bcryptjs": "^3.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
