@@ -158,7 +158,8 @@ export class AudioEngine {
   async loadSample(note: string): Promise<boolean> {
     try {
       const ctx = this.getContext();
-      const res = await fetch(`/audio/notes/${note}.mp3`);
+      const safeName = note.replace("#", "s");
+      const res = await fetch(`/audio/notes/${safeName}.wav`);
       if (!res.ok) return false;
       const arrayBuffer = await res.arrayBuffer();
       const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
