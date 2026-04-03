@@ -3,7 +3,6 @@
 import { cookies } from "next/headers";
 import { db } from "@/db";
 import { families } from "@/db/schema";
-import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
 const COOKIE_NAME = "melodex-family";

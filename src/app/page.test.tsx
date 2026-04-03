@@ -7,6 +7,20 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
+vi.mock("@/lib/repositories/student-repo", () => ({
+  getOrCreateStudent: vi.fn(),
+  updateCurrentLesson: vi.fn(),
+}));
+
+vi.mock("@/lib/repositories/attempt-repo", () => ({
+  addLessonAttemptToDB: vi.fn(),
+  addSongAttemptToDB: vi.fn(),
+}));
+
+vi.mock("@/lib/auth", () => ({
+  getFamilyId: vi.fn().mockResolvedValue("fam-1"),
+}));
+
 describe("Home", () => {
   beforeEach(() => {
     useAppStore.setState({
@@ -19,6 +33,7 @@ describe("Home", () => {
       },
       lessonAttempts: [],
       songAttempts: [],
+      hydrated: true,
     });
   });
 

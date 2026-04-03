@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAppStore } from "@/store/useAppStore";

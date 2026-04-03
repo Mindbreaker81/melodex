@@ -1,6 +1,36 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { useAppStore } from "@/store/useAppStore";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { StudentProfile } from "@/types/storage";
+
+vi.mock("@/lib/repositories/student-repo", () => ({
+  getOrCreateStudent: vi.fn().mockResolvedValue({
+    id: "db-student-1",
+    familyId: "fam-1",
+    displayName: "Ana",
+    avatar: "cat",
+    currentLessonId: "lesson-1",
+    createdAt: new Date("2025-01-01"),
+  }),
+  updateCurrentLesson: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/lib/repositories/attempt-repo", () => ({
+  addLessonAttemptToDB: vi.fn().mockImplementation((data) => ({
+    ...data,
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+  })),
+  addSongAttemptToDB: vi.fn().mockImplementation((data) => ({
+    ...data,
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+  })),
+}));
+
+vi.mock("@/lib/auth", () => ({
+  getFamilyId: vi.fn().mockResolvedValue("fam-1"),
+}));
+
+import { useAppStore } from "@/store/useAppStore";
 
 const mockStudent: StudentProfile = {
   id: "student-1",
@@ -16,6 +46,7 @@ describe("useAppStore", () => {
       student: null,
       lessonAttempts: [],
       songAttempts: [],
+      hydrated: false,
     });
   });
 
@@ -26,25 +57,38 @@ describe("useAppStore", () => {
     expect(songAttempts).toEqual([]);
   });
 
-  it("setStudent sets the student profile", () => {
-    useAppStore.getState().setStudent(mockStudent);
+  it("hydrate sets data and hydrated flag", () => {
+    useAppStore.getState().hydrate({
+      student: mockStudent,
+      lessonAttempts: [],
+      songAttempts: [],
+    });
+    expect(useAppStore.getState().hydrated).toBe(true);
     expect(useAppStore.getState().student).toEqual(mockStudent);
   });
 
-  it("setCurrentLessonId updates the current lesson", () => {
-    useAppStore.getState().setStudent(mockStudent);
-    useAppStore.getState().setCurrentLessonId("lesson-3");
+  it("setStudent calls server action and sets student from DB", async () => {
+    await useAppStore.getState().setStudent(mockStudent);
+    const s = useAppStore.getState().student;
+    expect(s).toBeDefined();
+    expect(s!.id).toBe("db-student-1");
+    expect(s!.displayName).toBe("Ana");
+  });
+
+  it("setCurrentLessonId updates the current lesson", async () => {
+    useAppStore.setState({ student: mockStudent });
+    await useAppStore.getState().setCurrentLessonId("lesson-3");
     expect(useAppStore.getState().student?.currentLessonId).toBe("lesson-3");
   });
 
   it("clearStudent resets student to null", () => {
-    useAppStore.getState().setStudent(mockStudent);
+    useAppStore.setState({ student: mockStudent });
     useAppStore.getState().clearStudent();
     expect(useAppStore.getState().student).toBeNull();
   });
 
-  it("addLessonAttempt adds an attempt with auto-generated id and createdAt", () => {
-    useAppStore.getState().addLessonAttempt({
+  it("addLessonAttempt adds an attempt via server action", async () => {
+    await useAppStore.getState().addLessonAttempt({
       studentId: "student-1",
       lessonId: "lesson-1",
       stars: 2,
@@ -61,10 +105,10 @@ describe("useAppStore", () => {
     expect(attempts[0].lessonId).toBe("lesson-1");
   });
 
-  it("getBestAttempt returns the attempt with highest stars", () => {
+  it("getBestAttempt returns the attempt with highest stars", async () => {
     const { addLessonAttempt } = useAppStore.getState();
 
-    addLessonAttempt({
+    await addLessonAttempt({
       studentId: "student-1",
       lessonId: "lesson-1",
       stars: 1,
@@ -72,7 +116,7 @@ describe("useAppStore", () => {
       completed: true,
       durationSeconds: 200,
     });
-    addLessonAttempt({
+    await addLessonAttempt({
       studentId: "student-1",
       lessonId: "lesson-1",
       stars: 3,
@@ -80,7 +124,7 @@ describe("useAppStore", () => {
       completed: true,
       durationSeconds: 100,
     });
-    addLessonAttempt({
+    await addLessonAttempt({
       studentId: "student-1",
       lessonId: "lesson-1",
       stars: 2,
@@ -98,8 +142,8 @@ describe("useAppStore", () => {
     expect(useAppStore.getState().getBestAttempt("nonexistent")).toBeUndefined();
   });
 
-  it("addSongAttempt adds a song attempt with auto-generated id and createdAt", () => {
-    useAppStore.getState().addSongAttempt({
+  it("addSongAttempt adds a song attempt via server action", async () => {
+    await useAppStore.getState().addSongAttempt({
       studentId: "student-1",
       songId: "song-1",
       fragmentId: "frag-1",
@@ -115,10 +159,10 @@ describe("useAppStore", () => {
     expect(attempts[0].songId).toBe("song-1");
   });
 
-  it("getSongStars counts unique fragments and full-song completion", () => {
+  it("getSongStars counts unique fragments and full-song completion", async () => {
     const { addSongAttempt } = useAppStore.getState();
 
-    addSongAttempt({
+    await addSongAttempt({
       studentId: "student-1",
       songId: "song-1",
       fragmentId: "frag-1",
@@ -126,7 +170,7 @@ describe("useAppStore", () => {
       tempoPercent: 50,
       durationSeconds: 20,
     });
-    addSongAttempt({
+    await addSongAttempt({
       studentId: "student-1",
       songId: "song-1",
       fragmentId: "frag-1",
@@ -134,7 +178,7 @@ describe("useAppStore", () => {
       tempoPercent: 75,
       durationSeconds: 18,
     });
-    addSongAttempt({
+    await addSongAttempt({
       studentId: "student-1",
       songId: "song-1",
       fragmentId: "frag-2",
@@ -142,7 +186,7 @@ describe("useAppStore", () => {
       tempoPercent: 75,
       durationSeconds: 22,
     });
-    addSongAttempt({
+    await addSongAttempt({
       studentId: "student-1",
       songId: "song-1",
       fragmentId: null,
@@ -154,10 +198,10 @@ describe("useAppStore", () => {
     expect(useAppStore.getState().getSongStars("song-1")).toBe(3);
   });
 
-  it("getTotalSongStars sums unique stars across songs", () => {
+  it("getTotalSongStars sums unique stars across songs", async () => {
     const { addSongAttempt } = useAppStore.getState();
 
-    addSongAttempt({
+    await addSongAttempt({
       studentId: "student-1",
       songId: "song-1",
       fragmentId: "frag-1",
@@ -165,7 +209,7 @@ describe("useAppStore", () => {
       tempoPercent: 50,
       durationSeconds: 12,
     });
-    addSongAttempt({
+    await addSongAttempt({
       studentId: "student-1",
       songId: "song-1",
       fragmentId: null,
@@ -173,7 +217,7 @@ describe("useAppStore", () => {
       tempoPercent: 100,
       durationSeconds: 25,
     });
-    addSongAttempt({
+    await addSongAttempt({
       studentId: "student-1",
       songId: "song-2",
       fragmentId: "frag-a",
@@ -185,10 +229,10 @@ describe("useAppStore", () => {
     expect(useAppStore.getState().getTotalSongStars()).toBe(3);
   });
 
-  it("getTotalStars sums best stars per completed lesson", () => {
+  it("getTotalStars sums best stars per completed lesson", async () => {
     const { addLessonAttempt } = useAppStore.getState();
 
-    addLessonAttempt({
+    await addLessonAttempt({
       studentId: "student-1",
       lessonId: "lesson-1",
       stars: 2,
@@ -196,7 +240,7 @@ describe("useAppStore", () => {
       completed: true,
       durationSeconds: 100,
     });
-    addLessonAttempt({
+    await addLessonAttempt({
       studentId: "student-1",
       lessonId: "lesson-1",
       stars: 3,
@@ -204,7 +248,7 @@ describe("useAppStore", () => {
       completed: true,
       durationSeconds: 90,
     });
-    addLessonAttempt({
+    await addLessonAttempt({
       studentId: "student-1",
       lessonId: "lesson-2",
       stars: 1,
@@ -212,7 +256,7 @@ describe("useAppStore", () => {
       completed: true,
       durationSeconds: 150,
     });
-    addLessonAttempt({
+    await addLessonAttempt({
       studentId: "student-1",
       lessonId: "lesson-3",
       stars: 2,
@@ -224,10 +268,10 @@ describe("useAppStore", () => {
     expect(useAppStore.getState().getTotalStars()).toBe(4);
   });
 
-  it("getCompletedLessonIds returns only completed lesson IDs", () => {
+  it("getCompletedLessonIds returns only completed lesson IDs", async () => {
     const { addLessonAttempt } = useAppStore.getState();
 
-    addLessonAttempt({
+    await addLessonAttempt({
       studentId: "student-1",
       lessonId: "lesson-1",
       stars: 3,
@@ -235,7 +279,7 @@ describe("useAppStore", () => {
       completed: true,
       durationSeconds: 100,
     });
-    addLessonAttempt({
+    await addLessonAttempt({
       studentId: "student-1",
       lessonId: "lesson-2",
       stars: 0,
@@ -243,7 +287,7 @@ describe("useAppStore", () => {
       completed: false,
       durationSeconds: 50,
     });
-    addLessonAttempt({
+    await addLessonAttempt({
       studentId: "student-1",
       lessonId: "lesson-3",
       stars: 2,
@@ -259,8 +303,8 @@ describe("useAppStore", () => {
     expect(ids).not.toContain("lesson-2");
   });
 
-  it("isLessonCompleted returns correct boolean", () => {
-    useAppStore.getState().addLessonAttempt({
+  it("isLessonCompleted returns correct boolean", async () => {
+    await useAppStore.getState().addLessonAttempt({
       studentId: "student-1",
       lessonId: "lesson-1",
       stars: 3,
