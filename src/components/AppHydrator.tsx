@@ -12,6 +12,10 @@ export function AppHydrator({ data }: { data: AppState | null }) {
   useEffect(() => {
     if (!hydrated) {
       hydrate(data ?? createEmptyAppState());
+      return;
+    }
+    if (data?.student && !useAppStore.getState().student) {
+      hydrate(data);
     }
   }, [data, hydrate, hydrated]);
 

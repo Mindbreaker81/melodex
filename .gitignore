@@ -31,6 +31,12 @@ next-env.d.ts
 # Vercel
 .vercel
 
+# Netlify (artefactos locales de build/deploy)
+.netlify/
+
+# Deno (no usado en el flujo pnpm del proyecto)
+deno.lock
+
 # Testing / coverage
 coverage/
 .todos/
